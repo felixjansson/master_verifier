@@ -1,13 +1,15 @@
-package com.master_thesis.ge;
+package com.master_thesis.verifier;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class GeApplication {
+public class VerifierApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(GeApplication.class, args);
+        SpringApplication.run(VerifierApplication.class, args);
     }
+
+    private PublicParameters publicParameters;
 
 }

@@ -1,10 +1,10 @@
-package com.master_thesis.ge;
+package com.master_thesis.verifier;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class GeApplicationTests {
+class VerifierApplicationTests {
 
     @Test
     void contextLoads() {

@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="VERIFIER" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="ge.main" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.master_thesis.verifier.VerifierApplication" />
+    <option name="VM_PARAMETERS" value="-Dserver.port=3000" />
+    <option name="ALTERNATIVE_JRE_PATH" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
