@@ -24,8 +24,8 @@ public class VerifierBuffer {
     }
 
     public void put(PartialInfo partialInfo){
-        map.putIfAbsent(partialInfo.getServerId(), new LinkedList<>());
-        map.get(partialInfo.getServerId()).add(partialInfo);
+        map.putIfAbsent(partialInfo.getServerID(), new LinkedList<>());
+        map.get(partialInfo.getServerID()).add(partialInfo);
     }
 
     public List<Integer> getPartialProofs() {
@@ -40,7 +40,7 @@ public class VerifierBuffer {
         return map.values().stream()
                 .map(Queue::poll)
                 .filter(Objects::nonNull)
-                .map(PartialInfo::getPartialEval)
+                .map(PartialInfo::getPartialResult)
                 .collect(Collectors.toList());
     }
 
