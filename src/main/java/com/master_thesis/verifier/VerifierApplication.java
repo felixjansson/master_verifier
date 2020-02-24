@@ -1,5 +1,7 @@
 package com.master_thesis.verifier;
 
+import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -10,6 +12,5 @@ public class VerifierApplication {
         SpringApplication.run(VerifierApplication.class, args);
     }
 
-    private PublicParameters publicParameters;
 
 }

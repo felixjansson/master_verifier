@@ -13,7 +13,7 @@ public class DummySecretShare implements VerifierSecretShare{
 
     @Override
     public int finalProof(List<Integer> partialProofs) {
-        return 0;
+        return partialProofs.stream().reduce(0, Integer::sum);
     }
 
     @Override

@@ -36,7 +36,7 @@ public class PartialInfo {
     public String toString() {
         return "PartialInfo{" +
                 "partialProof=" + partialProof +
-                ", partialEval=" + partialResult +
+                ", partialResult=" + partialResult +
                 ", serverId=" + serverID +
                 '}';
     }
