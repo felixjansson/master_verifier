@@ -4,9 +4,9 @@ public class PartialInfo {
 
     private int partialProof;
 
-    private int partialEval;
+    private int partialResult;
 
-    private int serverId;
+    private int serverID;
 
     public int getPartialProof() {
         return partialProof;
@@ -16,28 +16,28 @@ public class PartialInfo {
         this.partialProof = partialProof;
     }
 
-    public int getPartialEval() {
-        return partialEval;
+    public int getPartialResult() {
+        return partialResult;
     }
 
-    public void setPartialEval(int partialEval) {
-        this.partialEval = partialEval;
+    public void setPartialResult(int partialResult) {
+        this.partialResult = partialResult;
     }
 
-    public int getServerId() {
-        return serverId;
+    public int getServerID() {
+        return serverID;
     }
 
-    public void setServerId(int serverId) {
-        this.serverId = serverId;
+    public void setServerID(int serverID) {
+        this.serverID = serverID;
     }
 
     @Override
     public String toString() {
         return "PartialInfo{" +
                 "partialProof=" + partialProof +
-                ", partialEval=" + partialEval +
-                ", serverId=" + serverId +
+                ", partialEval=" + partialResult +
+                ", serverId=" + serverID +
                 '}';
     }
 }
