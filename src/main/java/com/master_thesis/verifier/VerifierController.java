@@ -21,7 +21,7 @@ public class VerifierController {
     public void receiveShare(@RequestBody PartialInfo partialInfo) {
         buffer.put(partialInfo);
         if (buffer.canCompute()) {
-            int result = verifier.finalEval(buffer.getPartialEvals());
+            int result = verifier.finalEval(buffer.getPartialResults());
             int proof = verifier.finalProof(buffer.getPartialProofs());
             boolean validResult = verifier.verify(null, null, proof, result);
             DatabaseConnection.put(result, proof, validResult);

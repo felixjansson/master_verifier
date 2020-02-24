@@ -36,7 +36,7 @@ public class VerifierBuffer {
                 .collect(Collectors.toList());
     }
 
-    public List<Integer> getPartialEvals() {
+    public List<Integer> getPartialResults() {
         return map.values().stream()
                 .map(Queue::poll)
                 .filter(Objects::nonNull)
