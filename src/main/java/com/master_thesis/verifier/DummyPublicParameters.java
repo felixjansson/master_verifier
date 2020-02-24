@@ -20,12 +20,12 @@ public class DummyPublicParameters implements PublicParameters{
     @SneakyThrows
     public List<Integer> getServers() {
 
-        HttpRequest httpRequest = HttpRequest.newBuilder(URI.create("http://localhost:4000/api/server/list"))
+        HttpRequest httpRequest = HttpRequest.newBuilder(URI.create("http://localhost:4000/api/server/list/ids"))
                 .GET().build();
 
         HttpResponse<String> response = HttpClient.newHttpClient().send(httpRequest, HttpResponse.BodyHandlers.ofString());
-        List<ServerData> servers = new ObjectMapper().readValue(response.body(), new TypeReference<>() {});
-        return servers.stream().map(ServerData::getServerID).collect(Collectors.toList());
+        List<Integer> servers = new ObjectMapper().readValue(response.body(), new TypeReference<>() {});
+        return servers;
     }
 
 }
