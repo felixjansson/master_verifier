@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigInteger;
+import java.util.List;
+
 @RestController
 public class VerifierController {
 
@@ -25,12 +28,14 @@ public class VerifierController {
         log.info("Got {}", partialInfo);
         buffer.put(partialInfo);
         if (buffer.canCompute()) {
-            int result = verifier.finalEval(buffer.getPartialResults());
-            int proof = verifier.finalProof(buffer.getPartialProofs());
+            int transformatorID = partialInfo.getTransformatorID();
+            BigInteger result = verifier.finalEval(buffer.getPartialResultsInfo(transformatorID), transformatorID);
+            BigInteger serverProof = verifier.finalProof(buffer.getServerPartialProofs(transformatorID), transformatorID);
+            List<BigInteger> clientProofs = buffer.getClientProofs(transformatorID);
             buffer.pop();
-            boolean validResult = verifier.verify(null, null, proof, result);
-            log.info("Writing to DB: result:{} proof:{} valid:{}", result, proof, validResult);
-            DatabaseConnection.put(result, proof, validResult);
+            boolean validResult = verifier.verify(partialInfo.getTransformatorID(), result, serverProof, clientProofs);
+            log.info("Writing to DB: result:{} proof:{} valid:{}", result, serverProof, validResult);
+            DatabaseConnection.put(result, serverProof, validResult);
         }
     }
 

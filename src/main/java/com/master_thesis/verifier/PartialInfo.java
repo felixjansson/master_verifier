@@ -1,27 +1,46 @@
 package com.master_thesis.verifier;
 
+import java.math.BigInteger;
+import java.util.List;
+
 public class PartialInfo {
 
-    private int partialProof;
-
-    private int partialResult;
-
+    private BigInteger partialResult;
+    private BigInteger serverPartialProof;
+    private List<BigInteger> clientPartialProof;
+    private int transformatorID;
     private int serverID;
 
-    public int getPartialProof() {
-        return partialProof;
-    }
-
-    public void setPartialProof(int partialProof) {
-        this.partialProof = partialProof;
-    }
-
-    public int getPartialResult() {
+    public BigInteger getPartialResult() {
         return partialResult;
     }
 
-    public void setPartialResult(int partialResult) {
+    public void setPartialResult(BigInteger partialResult) {
         this.partialResult = partialResult;
+    }
+
+    public BigInteger getServerPartialProof() {
+        return serverPartialProof;
+    }
+
+    public void setServerPartialProof(BigInteger serverPartialProof) {
+        this.serverPartialProof = serverPartialProof;
+    }
+
+    public List<BigInteger> getClientPartialProof() {
+        return clientPartialProof;
+    }
+
+    public void setClientPartialProof(List<BigInteger> clientPartialProof) {
+        this.clientPartialProof = clientPartialProof;
+    }
+
+    public int getTransformatorID() {
+        return transformatorID;
+    }
+
+    public void setTransformatorID(int transformatorID) {
+        this.transformatorID = transformatorID;
     }
 
     public int getServerID() {
@@ -35,9 +54,11 @@ public class PartialInfo {
     @Override
     public String toString() {
         return "PartialInfo{" +
-                "partialProof=" + partialProof +
-                ", partialResult=" + partialResult +
-                ", serverId=" + serverID +
+                "partialResult=" + partialResult +
+                ", serverPartialProof=" + serverPartialProof +
+                ", clientPartialProof=" + clientPartialProof +
+                ", transformatorID=" + transformatorID +
+                ", serverID=" + serverID +
                 '}';
     }
 }

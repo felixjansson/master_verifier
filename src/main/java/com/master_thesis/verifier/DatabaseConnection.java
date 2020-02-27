@@ -1,14 +1,28 @@
 package com.master_thesis.verifier;
 
 import ch.qos.logback.classic.Logger;
+import lombok.SneakyThrows;
 import org.slf4j.LoggerFactory;
+
+import java.math.BigInteger;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 public class DatabaseConnection {
 
     private final static Logger log = (Logger) LoggerFactory.getLogger(DatabaseConnection.class);
 
-    public static void put(int proof, int result, boolean isValid) {
+    @SneakyThrows
+    public static void put(BigInteger proof, BigInteger result, boolean isValid) {
         log.info("writing to DB success ish");
+        URI uri = URI.create("http://localhost:4000/api/client");
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .DELETE().build();
+
+        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
     }
+
 
 }

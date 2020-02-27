@@ -1,9 +1,11 @@
 package com.master_thesis.verifier;
 
 import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.math.BigInteger;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -14,6 +16,8 @@ public class VerifierBuffer {
     private HashMap<Integer, Queue<PartialInfo>> map;
 
     PublicParameters publicParameters;
+    private static final Logger log = (Logger) LoggerFactory.getLogger(VerifierBuffer.class);
+
 
     @Autowired
     public VerifierBuffer(PublicParameters publicParameters) {
@@ -37,21 +41,13 @@ public class VerifierBuffer {
         map.get(partialInfo.getServerID()).add(partialInfo);
     }
 
-    public List<Integer> getPartialProofs() {
+    public Map<Integer, BigInteger> getServerPartialProofs(int id) {
         return map.values().stream()
                 .map(Queue::peek)
                 .filter(Objects::nonNull)
-                .map(PartialInfo::getPartialProof)
-                .collect(Collectors.toList());
+                .collect(Collectors.toMap(PartialInfo::getServerID, PartialInfo::getServerPartialProof));
     }
 
-    public List<Integer> getPartialResults() {
-        return map.values().stream()
-                .map(Queue::peek)
-                .filter(Objects::nonNull)
-                .map(PartialInfo::getPartialResult)
-                .collect(Collectors.toList());
-    }
 
     public void pop() {
         map.values().forEach(Queue::remove);
@@ -62,4 +58,28 @@ public class VerifierBuffer {
         return map.values().stream().noneMatch(Queue::isEmpty);
     }
 
+    public List<BigInteger> getClientProofs(int id) {
+        List<List<BigInteger>> clientProofsList =  map.values()
+                .stream()
+                .map(Queue::peek)
+                .filter(Objects::nonNull)
+                .map(PartialInfo::getClientPartialProof)
+                .collect(Collectors.toList());
+        List<BigInteger> base = clientProofsList.get(0);
+
+        if (clientProofsList.stream().allMatch(base::containsAll)) {
+            return base;
+        } else {
+            log.error("All ClientProofList do not match\n {}", clientProofsList);
+            throw new RuntimeException();
+        }
+    }
+
+    public Map<Integer, BigInteger> getPartialResultsInfo(int id) {
+        return map.values()
+                .stream()
+                .map(Queue::peek)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(PartialInfo::getServerID, PartialInfo::getPartialResult));
+    }
 }
