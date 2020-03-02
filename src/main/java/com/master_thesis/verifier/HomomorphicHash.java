@@ -6,9 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class HomomorphicHash implements VerifierSecretShare {
@@ -25,31 +27,29 @@ public class HomomorphicHash implements VerifierSecretShare {
 
     @Override
     public BigInteger finalEval(Map<Integer, BigInteger> partialResultInfo, int transformatorID) {
-        Set<Integer> serverIDs = Set.copyOf(partialResultInfo.keySet());
-        return partialResultInfo.keySet().stream().map(serverID -> {
-            int beta = beta(serverID, serverIDs);
-            BigInteger partialResult = partialResultInfo.get(serverID);
-            return partialResult.multiply(BigInteger.valueOf(beta));
-        }).reduce(BigInteger.ZERO, BigInteger::add).mod(publicParameters.getFieldBase(transformatorID));
+        return partialResultInfo.values()
+                .stream()
+                .reduce(BigInteger.ZERO, BigInteger::add)
+                .mod(publicParameters.getFieldBase(transformatorID));
     }
 
     @Override
     public BigInteger finalProof(Map<Integer, BigInteger> partialProofsInfo, int transformatorID) {
-        Set<Integer> serverIDs = Set.copyOf(partialProofsInfo.keySet());
-        BigInteger fieldBase = publicParameters.getFieldBase(transformatorID);
-        return partialProofsInfo.keySet().stream().map(serverID -> {
-            int beta = beta(serverID, serverIDs);
-            BigInteger partialServerProof = partialProofsInfo.get(serverID);
-            BigInteger res = partialServerProof.modPow(BigInteger.valueOf(beta), fieldBase);
-            log.info("{} : {}, beta: {}, partial: {}", serverID, res, beta, partialServerProof);
-            return res;
-        }).reduce(BigInteger.ONE, (accu, x) -> accu.multiply(x).mod(fieldBase));
+        return paperFinalProof(new ArrayList<>(partialProofsInfo.values()), transformatorID);
+//        Set<Integer> serverIDs = Set.copyOf(partialProofsInfo.keySet());
+//        BigInteger fieldBase = publicParameters.getFieldBase(transformatorID);
+//        return partialProofsInfo.keySet().stream().map(serverID -> {
+//            int beta = beta(serverID, serverIDs);
+//            BigInteger partialServerProof = partialProofsInfo.get(serverID);
+//            BigInteger res = partialServerProof.modPow(BigInteger.valueOf(beta), fieldBase);
+//            log.info("{} : {}, beta: {}, partial: {}", serverID, res, beta, partialServerProof);
+//            return res;
+//        }).reduce(BigInteger.ONE, (accu, x) -> accu.multiply(x).mod(fieldBase));
     }
 
     public BigInteger paperFinalProof(List<BigInteger> partialProofs, int transformatorID) {
         return partialProofs.stream()
-                .reduce(BigInteger.ONE,
-                        (accu, x) -> accu.multiply(x).mod(publicParameters.getFieldBase(transformatorID)));
+                .reduce(BigInteger.ONE, BigInteger::multiply).mod(publicParameters.getFieldBase(transformatorID));
     }
 
     @Override
@@ -60,7 +60,7 @@ public class HomomorphicHash implements VerifierSecretShare {
         boolean clientEqResult = clientProof.equals(resultProof);
         boolean clientEqServer = clientProof.equals(serverProof);
         if (!(clientEqResult && clientEqServer))
-            log.info("clientProof: {}, resultProof: {}, serverProof:{}",  clientProof, resultProof, serverProof);
+            log.info("clientProof: {}, resultProof: {}, serverProof:{}", clientProof, resultProof, serverProof);
         return clientProof.equals(resultProof) && clientProof.equals(serverProof);
     }
 
