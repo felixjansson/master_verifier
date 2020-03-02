@@ -17,11 +17,6 @@ public class DatabaseConnection {
     @SneakyThrows
     public static void put(BigInteger proof, BigInteger result, boolean isValid) {
         log.info("writing to DB success ish");
-        URI uri = URI.create("http://localhost:4000/api/client");
-        HttpRequest request = HttpRequest.newBuilder(uri)
-                .DELETE().build();
-
-        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
     }
 
 
