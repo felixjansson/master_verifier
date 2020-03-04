@@ -13,9 +13,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
-public class HomomorphicHash implements VerifierSecretShare {
+public class HomomorphicHash {
 
-    private PublicParameters publicParameters;
+    protected PublicParameters publicParameters;
     private final static Logger log = (Logger) LoggerFactory.getLogger(HomomorphicHash.class);
 
 
@@ -25,7 +25,6 @@ public class HomomorphicHash implements VerifierSecretShare {
     }
 
 
-    @Override
     public BigInteger finalEval(Map<Integer, BigInteger> partialResultInfo, int transformatorID) {
         return partialResultInfo.values()
                 .stream()
@@ -33,9 +32,8 @@ public class HomomorphicHash implements VerifierSecretShare {
                 .mod(publicParameters.getFieldBase(transformatorID));
     }
 
-    @Override
-    public BigInteger finalProof(Map<Integer, BigInteger> partialProofsInfo, int transformatorID) {
-        return paperFinalProof(new ArrayList<>(partialProofsInfo.values()), transformatorID);
+    public BigInteger finalProof(List<BigInteger> partialProofsInfo, int transformatorID) {
+        return paperFinalProof(partialProofsInfo, transformatorID);
 //        Set<Integer> serverIDs = Set.copyOf(partialProofsInfo.keySet());
 //        BigInteger fieldBase = publicParameters.getFieldBase(transformatorID);
 //        return partialProofsInfo.keySet().stream().map(serverID -> {
@@ -52,7 +50,6 @@ public class HomomorphicHash implements VerifierSecretShare {
                 .reduce(BigInteger.ONE, BigInteger::multiply).mod(publicParameters.getFieldBase(transformatorID));
     }
 
-    @Override
     public boolean verify(int transformatorID, BigInteger result, BigInteger serverProof, List<BigInteger> clientProofs) {
         BigInteger fieldBase = publicParameters.getFieldBase(transformatorID);
         BigInteger clientProof = clientProofs.stream().reduce(BigInteger.ONE, BigInteger::multiply).mod(fieldBase);

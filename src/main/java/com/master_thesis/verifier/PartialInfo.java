@@ -11,6 +11,16 @@ public class PartialInfo {
     private int transformatorID;
     private int serverID;
 
+    private List<RsaProofComponent> rsaProofComponents;
+
+    public List<RsaProofComponent> getRsaProofComponents() {
+        return rsaProofComponents;
+    }
+
+    public void setRsaProofComponents(List<RsaProofComponent> rsaProofComponents) {
+        this.rsaProofComponents = rsaProofComponents;
+    }
+
     public BigInteger getPartialResult() {
         return partialResult;
     }
@@ -59,6 +69,7 @@ public class PartialInfo {
                 ", clientPartialProof=" + clientPartialProof +
                 ", transformatorID=" + transformatorID +
                 ", serverID=" + serverID +
+                ", rsaProofComponents=" + rsaProofComponents +
                 '}';
     }
 }

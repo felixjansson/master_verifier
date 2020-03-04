@@ -41,13 +41,31 @@ public class VerifierBuffer {
         map.get(partialInfo.getServerID()).add(partialInfo);
     }
 
-    public Map<Integer, BigInteger> getServerPartialProofs(int id) {
+    public List<BigInteger> getServerPartialProofs(int id) {
         return map.values().stream()
                 .map(Queue::peek)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toMap(PartialInfo::getServerID, PartialInfo::getServerPartialProof));
+                .map(PartialInfo::getServerPartialProof)
+                .collect(Collectors.toList());
     }
 
+    public List<RsaProofComponent> getRSAProofComponents(int transformatorID) {
+        List<List<RsaProofComponent>> rsaProofComponentList = map.values().stream()
+                .map(Queue::peek)
+                .filter(Objects::nonNull)
+                .map(PartialInfo::getRsaProofComponents)
+                .collect(Collectors.toList());
+        List<RsaProofComponent> base = rsaProofComponentList.get(0);
+
+        log.debug("this is RSA Proof list {}", rsaProofComponentList);
+        if (rsaProofComponentList.stream().allMatch(base::containsAll)) {
+            return base;
+        } else {
+            log.error("All rsaProofComponents do not match\n {}", rsaProofComponentList);
+            throw new RuntimeException();
+        }
+
+    }
 
     public void pop() {
         map.values().forEach(Queue::remove);
@@ -66,6 +84,8 @@ public class VerifierBuffer {
                 .map(PartialInfo::getClientPartialProof)
                 .collect(Collectors.toList());
         List<BigInteger> base = clientProofsList.get(0);
+
+        log.debug("This is client list - {}", clientProofsList);
 
         if (clientProofsList.stream().allMatch(base::containsAll)) {
             return base;

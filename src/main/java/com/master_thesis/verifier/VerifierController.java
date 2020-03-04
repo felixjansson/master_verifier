@@ -14,11 +14,11 @@ import java.util.List;
 public class VerifierController {
 
     private VerifierBuffer buffer;
-    private VerifierSecretShare verifier;
+    private RSAThreshold verifier;
     private static final Logger log = (Logger) LoggerFactory.getLogger(VerifierController.class);
 
     @Autowired
-    public VerifierController(VerifierBuffer buffer, VerifierSecretShare verifier) {
+    public VerifierController(VerifierBuffer buffer, RSAThreshold verifier) {
         this.buffer = buffer;
         this.verifier = verifier;
     }
@@ -27,17 +27,23 @@ public class VerifierController {
     public void receiveShare(@RequestBody PartialInfo partialInfo) {
         log.info("Got {}", partialInfo);
         buffer.put(partialInfo);
-        if (buffer.canCompute()) {
-            int transformatorID = partialInfo.getTransformatorID();
-            BigInteger result = verifier.finalEval(buffer.getPartialResultsInfo(transformatorID), transformatorID);
-            BigInteger serverProof = verifier.finalProof(buffer.getServerPartialProofs(transformatorID), transformatorID);
-            List<BigInteger> clientProofs = buffer.getClientProofs(transformatorID);
-            buffer.pop();
-            boolean validResult = verifier.verify(partialInfo.getTransformatorID(), result, serverProof, clientProofs);
-            log.info("Writing to DB: result:{} proof:{} valid:{}", result, serverProof, validResult);
-            DatabaseConnection.put(result, serverProof, validResult);
-        }
+        if (buffer.canCompute())
+            new Thread(() -> performComputations(partialInfo.getTransformatorID())).start();
     }
 
+    private void performComputations(int transformatorID) {
+        BigInteger result = verifier.finalEval(buffer.getPartialResultsInfo(transformatorID), transformatorID);
+        List<BigInteger> clientProofs = buffer.getClientProofs(transformatorID);
+
+        BigInteger rsaServerProof = verifier.newFinalProof(buffer.getRSAProofComponents(transformatorID), transformatorID);
+        BigInteger hashServerProof = verifier.finalProof(buffer.getClientProofs(transformatorID), transformatorID);
+
+        buffer.pop();
+        boolean rsaValidResult = verifier.verify(transformatorID, result, rsaServerProof, clientProofs);
+        boolean hashValidResult = verifier.verify(transformatorID, result, hashServerProof, clientProofs);
+        log.info("RSA: Writing to DB: result:{} server proof:{} valid:{}", result, rsaServerProof, rsaValidResult);
+        log.info("Hash: Writing to DB: result:{} server proof:{} valid:{}", result, hashServerProof, hashValidResult);
+        DatabaseConnection.put(result, rsaServerProof, rsaValidResult);
+    }
 
 }
