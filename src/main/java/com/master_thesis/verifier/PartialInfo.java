@@ -1,24 +1,25 @@
 package com.master_thesis.verifier;
 
 import java.math.BigInteger;
-import java.util.List;
+import java.util.Arrays;
 
 public class PartialInfo {
 
     private BigInteger partialResult;
-    private BigInteger serverPartialProof;
-    private List<BigInteger> clientPartialProof;
     private int transformatorID;
     private int serverID;
+    private BigInteger homomorphicPartialProof;
+    private ClientInfo[] clientInfos;
 
-    private List<RsaProofComponent> rsaProofComponents;
-
-    public List<RsaProofComponent> getRsaProofComponents() {
-        return rsaProofComponents;
-    }
-
-    public void setRsaProofComponents(List<RsaProofComponent> rsaProofComponents) {
-        this.rsaProofComponents = rsaProofComponents;
+    @Override
+    public String toString() {
+        return "PartialInfo{" +
+                "partialResult=" + partialResult +
+                ", transformatorID=" + transformatorID +
+                ", serverID=" + serverID +
+                ", homomorphicPartialProof=" + homomorphicPartialProof +
+                ", clientInfos=" + Arrays.toString(clientInfos) +
+                '}';
     }
 
     public BigInteger getPartialResult() {
@@ -27,22 +28,6 @@ public class PartialInfo {
 
     public void setPartialResult(BigInteger partialResult) {
         this.partialResult = partialResult;
-    }
-
-    public BigInteger getServerPartialProof() {
-        return serverPartialProof;
-    }
-
-    public void setServerPartialProof(BigInteger serverPartialProof) {
-        this.serverPartialProof = serverPartialProof;
-    }
-
-    public List<BigInteger> getClientPartialProof() {
-        return clientPartialProof;
-    }
-
-    public void setClientPartialProof(List<BigInteger> clientPartialProof) {
-        this.clientPartialProof = clientPartialProof;
     }
 
     public int getTransformatorID() {
@@ -61,15 +46,19 @@ public class PartialInfo {
         this.serverID = serverID;
     }
 
-    @Override
-    public String toString() {
-        return "PartialInfo{" +
-                "partialResult=" + partialResult +
-                ", serverPartialProof=" + serverPartialProof +
-                ", clientPartialProof=" + clientPartialProof +
-                ", transformatorID=" + transformatorID +
-                ", serverID=" + serverID +
-                ", rsaProofComponents=" + rsaProofComponents +
-                '}';
+    public BigInteger getHomomorphicPartialProof() {
+        return homomorphicPartialProof;
+    }
+
+    public void setHomomorphicPartialProof(BigInteger homomorphicPartialProof) {
+        this.homomorphicPartialProof = homomorphicPartialProof;
+    }
+
+    public ClientInfo[] getClientInfos() {
+        return clientInfos;
+    }
+
+    public void setClientInfos(ClientInfo[] clientInfos) {
+        this.clientInfos = clientInfos;
     }
 }

@@ -6,7 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 
 @Component
 public class RSAThreshold extends HomomorphicHash {
@@ -18,22 +21,24 @@ public class RSAThreshold extends HomomorphicHash {
         super(publicParameters);
     }
 
-    public BigInteger newFinalProof(List<RsaProofComponent> rsaProofComponents, int transformatorID) {
+    public BigInteger rsaFinalProof(List<ClientInfo> rsaProofComponents, int transformatorID) {
+        if (rsaProofComponents.isEmpty())
+            return null;
         return rsaProofComponents.stream()
                 .map(rsaProofComponent -> {
                     BigInteger clientProof = clientFinalProof(
-                            rsaProofComponent.getPk(),
+                            rsaProofComponent.getPublicKey(),
                             rsaProofComponent.getClientProof(),
-                            rsaProofComponent.getServerProofs(),
+                            rsaProofComponent.getRsaProofComponent(),
                             rsaProofComponent.getRsaN(),
-                            rsaProofComponent.getDeterminant());
-                    return clientProof.modPow(rsaProofComponent.getPk(), publicParameters.getFieldBase(transformatorID));
+                            rsaProofComponent.getRsaDeterminant());
+                    return clientProof.modPow(rsaProofComponent.getPublicKey(), publicParameters.getFieldBase(transformatorID));
                 })
                 .reduce(BigInteger.ONE, BigInteger::multiply)
                 .mod(publicParameters.getFieldBase(transformatorID));
     }
 
-    private BigInteger clientFinalProof(BigInteger pk, BigInteger clientProof, BigInteger[] serverProofs, BigInteger rsaN, BigInteger determinant) {
+    private BigInteger clientFinalProof(BigInteger pk, BigInteger clientProof, BigInteger[] serverProofs, BigInteger rsaN, double determinant) {
 
         BigInteger partial = Arrays.stream(serverProofs).reduce(BigInteger.ONE, BigInteger::multiply).mod(rsaN);
         Random r = new Random();
@@ -41,7 +46,7 @@ public class RSAThreshold extends HomomorphicHash {
         Optional<Integer> betaOpt = Optional.empty();
         while (betaOpt.isEmpty()) {
             log.debug("{} is not a valid alpha", alpha);
-            betaOpt = computeBeta(pk, determinant, alpha);
+            betaOpt = computeBeta(pk, BigInteger.valueOf(Math.round(determinant)), alpha); // TODO: 2020-03-09 This seems work
             alpha = r.nextInt();
         }
         int beta = betaOpt.get();

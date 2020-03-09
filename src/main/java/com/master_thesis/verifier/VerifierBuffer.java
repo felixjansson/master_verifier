@@ -13,10 +13,9 @@ import java.util.stream.Collectors;
 @Component
 public class VerifierBuffer {
 
-    private HashMap<Integer, Queue<PartialInfo>> map;
-
-    PublicParameters publicParameters;
     private static final Logger log = (Logger) LoggerFactory.getLogger(VerifierBuffer.class);
+    PublicParameters publicParameters;
+    private HashMap<Integer, Queue<PartialInfo>> map;
 
 
     @Autowired
@@ -36,35 +35,19 @@ public class VerifierBuffer {
         serverIDs.forEach(serverId -> map.putIfAbsent(serverId, new LinkedList<>()));
     }
 
-    public void put(PartialInfo partialInfo){
+    public void put(PartialInfo partialInfo) {
         map.putIfAbsent(partialInfo.getServerID(), new LinkedList<>());
         map.get(partialInfo.getServerID()).add(partialInfo);
     }
 
-    public List<BigInteger> getServerPartialProofs(int id) {
-        return map.values().stream()
+    public List<ClientInfo> getRSAProofComponents(int transformatorID) {
+        List<ClientInfo[]> rsaProofComponentList = map.values().stream()
                 .map(Queue::peek)
                 .filter(Objects::nonNull)
-                .map(PartialInfo::getServerPartialProof)
+                .map(PartialInfo::getClientInfos)
                 .collect(Collectors.toList());
-    }
-
-    public List<RsaProofComponent> getRSAProofComponents(int transformatorID) {
-        List<List<RsaProofComponent>> rsaProofComponentList = map.values().stream()
-                .map(Queue::peek)
-                .filter(Objects::nonNull)
-                .map(PartialInfo::getRsaProofComponents)
-                .collect(Collectors.toList());
-        List<RsaProofComponent> base = rsaProofComponentList.get(0);
-
-        log.debug("this is RSA Proof list {}", rsaProofComponentList);
-        if (rsaProofComponentList.stream().allMatch(base::containsAll)) {
-            return base;
-        } else {
-            log.error("All rsaProofComponents do not match\n {}", rsaProofComponentList);
-            throw new RuntimeException();
-        }
-
+        ClientInfo[] base = rsaProofComponentList.get(0);
+        return Arrays.asList(base);
     }
 
     public void pop() {
@@ -77,11 +60,15 @@ public class VerifierBuffer {
     }
 
     public List<BigInteger> getClientProofs(int id) {
-        List<List<BigInteger>> clientProofsList =  map.values()
+        List<List<BigInteger>> clientProofsList = map.values()
                 .stream()
                 .map(Queue::peek)
                 .filter(Objects::nonNull)
-                .map(PartialInfo::getClientPartialProof)
+                .map(PartialInfo::getClientInfos)
+                .map((ClientInfo[] t) ->
+                        Arrays.stream(t)
+                                .map(ClientInfo::getClientProof)
+                                .collect(Collectors.toList()))
                 .collect(Collectors.toList());
         List<BigInteger> base = clientProofsList.get(0);
 

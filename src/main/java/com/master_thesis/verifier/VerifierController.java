@@ -13,9 +13,9 @@ import java.util.List;
 @RestController
 public class VerifierController {
 
+    private static final Logger log = (Logger) LoggerFactory.getLogger(VerifierController.class);
     private VerifierBuffer buffer;
     private RSAThreshold verifier;
-    private static final Logger log = (Logger) LoggerFactory.getLogger(VerifierController.class);
 
     @Autowired
     public VerifierController(VerifierBuffer buffer, RSAThreshold verifier) {
@@ -35,8 +35,8 @@ public class VerifierController {
         BigInteger result = verifier.finalEval(buffer.getPartialResultsInfo(transformatorID), transformatorID);
         List<BigInteger> clientProofs = buffer.getClientProofs(transformatorID);
 
-        BigInteger rsaServerProof = verifier.newFinalProof(buffer.getRSAProofComponents(transformatorID), transformatorID);
-        BigInteger hashServerProof = verifier.finalProof(buffer.getClientProofs(transformatorID), transformatorID);
+        BigInteger rsaServerProof = verifier.rsaFinalProof(buffer.getRSAProofComponents(transformatorID), transformatorID);
+        BigInteger hashServerProof = verifier.hashFinalProof(buffer.getClientProofs(transformatorID), transformatorID);
 
         buffer.pop();
         boolean rsaValidResult = verifier.verify(transformatorID, result, rsaServerProof, clientProofs);

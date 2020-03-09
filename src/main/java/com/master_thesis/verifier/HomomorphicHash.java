@@ -6,17 +6,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
 public class HomomorphicHash {
 
-    protected PublicParameters publicParameters;
     private final static Logger log = (Logger) LoggerFactory.getLogger(HomomorphicHash.class);
+    protected PublicParameters publicParameters;
 
 
     @Autowired
@@ -32,17 +30,8 @@ public class HomomorphicHash {
                 .mod(publicParameters.getFieldBase(transformatorID));
     }
 
-    public BigInteger finalProof(List<BigInteger> partialProofsInfo, int transformatorID) {
+    public BigInteger hashFinalProof(List<BigInteger> partialProofsInfo, int transformatorID) {
         return paperFinalProof(partialProofsInfo, transformatorID);
-//        Set<Integer> serverIDs = Set.copyOf(partialProofsInfo.keySet());
-//        BigInteger fieldBase = publicParameters.getFieldBase(transformatorID);
-//        return partialProofsInfo.keySet().stream().map(serverID -> {
-//            int beta = beta(serverID, serverIDs);
-//            BigInteger partialServerProof = partialProofsInfo.get(serverID);
-//            BigInteger res = partialServerProof.modPow(BigInteger.valueOf(beta), fieldBase);
-//            log.info("{} : {}, beta: {}, partial: {}", serverID, res, beta, partialServerProof);
-//            return res;
-//        }).reduce(BigInteger.ONE, (accu, x) -> accu.multiply(x).mod(fieldBase));
     }
 
     public BigInteger paperFinalProof(List<BigInteger> partialProofs, int transformatorID) {
@@ -51,6 +40,8 @@ public class HomomorphicHash {
     }
 
     public boolean verify(int transformatorID, BigInteger result, BigInteger serverProof, List<BigInteger> clientProofs) {
+        if (serverProof == null)
+            return false;
         BigInteger fieldBase = publicParameters.getFieldBase(transformatorID);
         BigInteger clientProof = clientProofs.stream().reduce(BigInteger.ONE, BigInteger::multiply).mod(fieldBase);
         BigInteger resultProof = hash(result, fieldBase, publicParameters.getGenerator(transformatorID));

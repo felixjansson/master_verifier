@@ -10,13 +10,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
-public class PublicParameters{
-
+public class PublicParameters {
 
 
     @SneakyThrows
@@ -26,7 +23,8 @@ public class PublicParameters{
                 .GET().build();
 
         HttpResponse<String> response = HttpClient.newHttpClient().send(httpRequest, HttpResponse.BodyHandlers.ofString());
-        List<Integer> servers = new ObjectMapper().readValue(response.body(), new TypeReference<>() {});
+        List<Integer> servers = new ObjectMapper().readValue(response.body(), new TypeReference<>() {
+        });
         return servers;
     }
 
