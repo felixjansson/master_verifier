@@ -35,7 +35,6 @@ public class RSAThreshold extends HomomorphicHash {
                                 rsaProofComponent.getRsaN(),
                                 rsaProofComponent.getRsaDeterminant());
                         BigInteger res = encryptedRSAProof.modPow(rsaProofComponent.getPublicKey(), rsaProofComponent.getRsaN());
-                        log.info("ClientProof: {} res: {}", rsaProofComponent.clientProof, res.mod(publicParameters.getFieldBase(transformatorID)));
                         return res;
                     } catch (Exception e) {
                         log.info(e.getMessage());
@@ -61,8 +60,7 @@ public class RSAThreshold extends HomomorphicHash {
         // Compute the clients' rsa proof component
         BigInteger sigmaRoofAlpha = partial.modPow(alpha, rsaN);
         BigInteger tauBeta = clientProof.modPow(beta, rsaN);
-        BigInteger iSigma = sigmaRoofAlpha.multiply(tauBeta).mod(rsaN);
-        return iSigma;
+        return sigmaRoofAlpha.multiply(tauBeta).mod(rsaN);
     }
 
     /**
@@ -70,9 +68,12 @@ public class RSAThreshold extends HomomorphicHash {
      * All input will be mapped to positive numbers by absolute value function.
      * The return coefficient can be multiplied by the original sign of that parameter to restore correct sign.
      *
-     * @return first is coefficient of a, second is coefficient of b, third is gcd.
+     * @return [coefficient of a, coefficient of b, gcd].
      */
     public static BigInteger[] extendedEuclideanAlgorithm(BigInteger a, BigInteger b) {
+        //output "Bézout coefficients:", (s[1], t[1])
+        //output "greatest common divisor:", r[1]
+        //output "quotients by the gcd:", (t[0], s[0])
         BigInteger aPos = a.abs();
         BigInteger bPos = b.abs();
         BigInteger[] s = new BigInteger[]{ZERO, ONE};
@@ -85,11 +86,6 @@ public class RSAThreshold extends HomomorphicHash {
             s = internalEEA(s, quotient);
             t = internalEEA(t, quotient);
         }
-
-        //output "Bézout coefficients:", (old_s, old_t)
-//        System.out.println("Bézout coefficients: " + s[1] + " " + t[1]);
-        //output "greatest common divisor:", old_r
-        //output "quotients by the gcd:", (t, s)
 
         if (bPos.max(aPos).equals(bPos)) {
             return new BigInteger[]{s[1], t[1], r[1]};
