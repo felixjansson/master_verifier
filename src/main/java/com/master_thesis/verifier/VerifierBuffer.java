@@ -51,7 +51,7 @@ public class VerifierBuffer {
     }
 
     public void pop() {
-        map.values().forEach(Queue::remove);
+        map.values().stream().filter(p -> !p.isEmpty()).forEach(Queue::remove); // TODO: 2020-03-12 remove bad fault tolerance
     }
 
     public boolean canCompute() {

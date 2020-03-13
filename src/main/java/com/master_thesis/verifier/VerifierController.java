@@ -32,10 +32,11 @@ public class VerifierController {
     }
 
     private void performComputations(int transformatorID) {
+
         BigInteger result = verifier.finalEval(buffer.getPartialResultsInfo(transformatorID), transformatorID);
         List<BigInteger> clientProofs = buffer.getClientProofs(transformatorID);
 
-        BigInteger rsaServerProof = verifier.rsaFinalProof(buffer.getRSAProofComponents(transformatorID), transformatorID);
+        BigInteger rsaServerProof = verifier.rsaFinalProof(buffer.getRSAProofComponents(transformatorID), transformatorID, buffer);
         BigInteger hashServerProof = verifier.hashFinalProof(buffer.getClientProofs(transformatorID), transformatorID);
 
         buffer.pop();

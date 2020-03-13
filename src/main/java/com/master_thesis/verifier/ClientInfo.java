@@ -1,6 +1,7 @@
 package com.master_thesis.verifier;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 
 public class ClientInfo {
 
@@ -49,5 +50,17 @@ public class ClientInfo {
 
     public void setPublicKey(BigInteger publicKey) {
         this.publicKey = publicKey;
+    }
+
+
+    @Override
+    public String toString() {
+        return "ClientInfo{" +
+                "rsaN=" + rsaN +
+                ", clientProof=" + clientProof +
+                ", rsaProofComponent=" + Arrays.toString(rsaProofComponent) +
+                ", rsaDeterminant=" + rsaDeterminant +
+                ", publicKey=" + publicKey +
+                '}';
     }
 }
