@@ -20,11 +20,13 @@ public class VerifierController {
     private VerifierBuffer buffer;
     private Lock bufferLock;
     private RSAThreshold verifier;
+    private PublicParameters publicParameters;
 
     @Autowired
-    public VerifierController(VerifierBuffer buffer, RSAThreshold verifier) {
+    public VerifierController(VerifierBuffer buffer, RSAThreshold verifier, PublicParameters publicParameters) {
         this.buffer = buffer;
         this.verifier = verifier;
+        this.publicParameters = publicParameters;
         this.bufferLock = new ReentrantLock();
     }
 
@@ -35,25 +37,28 @@ public class VerifierController {
             try {
                 log.info("Got {}", partialInfo);
                 buffer.put(partialInfo);
-                if (buffer.canCompute())
-                    new Thread(() -> performComputations(partialInfo.getTransformatorID())).start();
+                if (buffer.canCompute(partialInfo.getSubstationID(), partialInfo.getFid()))
+                    new Thread(() -> performComputations(partialInfo.getSubstationID(), partialInfo.getFid())).start();
             } finally {
                 bufferLock.unlock();
             }
         }
     }
 
-    private void performComputations(int transformatorID) {
+    private void performComputations(int substationID, int fid) {
 
-        BigInteger result = verifier.finalEval(buffer.getPartialResultsInfo(transformatorID), transformatorID);
-        List<BigInteger> clientProofs = buffer.getClientProofs(transformatorID);
+        VerifierBuffer.Fid fidData = buffer.getFid(substationID, fid);
 
-        BigInteger rsaServerProof = verifier.rsaFinalProof(buffer.getRSAProofComponents(transformatorID), transformatorID, buffer);
-        BigInteger hashServerProof = verifier.hashFinalProof(buffer.getClientProofs(transformatorID), transformatorID);
+        BigInteger result = verifier.finalEval(fidData.getPartialResultsInfo(substationID), substationID);
+        List<BigInteger> clientProofs = fidData.getClientProofs();
+        BigInteger lastClientProof = publicParameters.getLastClientProof(substationID, fid);
+        clientProofs.add(lastClientProof);
 
-        buffer.pop();
-        boolean rsaValidResult = verifier.verify(transformatorID, result, rsaServerProof, clientProofs);
-        boolean hashValidResult = verifier.verify(transformatorID, result, hashServerProof, clientProofs);
+        BigInteger rsaServerProof = verifier.rsaFinalProof(fidData.getRSAProofComponents(), substationID, lastClientProof);
+        BigInteger hashServerProof = verifier.hashFinalProof(clientProofs, substationID);
+
+        boolean rsaValidResult = verifier.verify(substationID, result, rsaServerProof, clientProofs);
+        boolean hashValidResult = verifier.verify(substationID, result, hashServerProof, clientProofs);
         log.info("RSA: Writing to DB: result:{} server proof:{} valid:{}", result, rsaServerProof, rsaValidResult);
         log.info("Hash: Writing to DB: result:{} server proof:{} valid:{}", result, hashServerProof, hashValidResult);
         DatabaseConnection.put(result, rsaServerProof, rsaValidResult);

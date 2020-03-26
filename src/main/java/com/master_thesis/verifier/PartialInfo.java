@@ -6,16 +6,17 @@ import java.util.Arrays;
 public class PartialInfo {
 
     private BigInteger partialResult;
-    private int transformatorID;
+    private int substationID;
     private int serverID;
     private BigInteger homomorphicPartialProof;
     private ClientInfo[] clientInfos;
+    private int fid;
 
     @Override
     public String toString() {
         return "PartialInfo{" +
                 "partialResult=" + partialResult +
-                ", transformatorID=" + transformatorID +
+                ", substationID=" + substationID +
                 ", serverID=" + serverID +
                 ", homomorphicPartialProof=" + homomorphicPartialProof +
                 ", clientInfos=" + Arrays.toString(clientInfos) +
@@ -30,12 +31,12 @@ public class PartialInfo {
         this.partialResult = partialResult;
     }
 
-    public int getTransformatorID() {
-        return transformatorID;
+    public int getSubstationID() {
+        return substationID;
     }
 
-    public void setTransformatorID(int transformatorID) {
-        this.transformatorID = transformatorID;
+    public void setSubstationID(int substationID) {
+        this.substationID = substationID;
     }
 
     public int getServerID() {
@@ -60,5 +61,13 @@ public class PartialInfo {
 
     public void setClientInfos(ClientInfo[] clientInfos) {
         this.clientInfos = clientInfos;
+    }
+
+    public int getFid() {
+        return fid;
+    }
+
+    public void setFid(int fid) {
+        this.fid = fid;
     }
 }

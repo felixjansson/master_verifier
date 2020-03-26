@@ -6,87 +6,89 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
-import java.util.*;
-import java.util.function.Predicate;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
 public class VerifierBuffer {
 
     private static final Logger log = (Logger) LoggerFactory.getLogger(VerifierBuffer.class);
+
     PublicParameters publicParameters;
-    private HashMap<Integer, Queue<PartialInfo>> map;
+    private HashMap<Integer, Substation> substations;
 
 
     @Autowired
     public VerifierBuffer(PublicParameters publicParameters) {
-        map = new HashMap<>();
+        substations = new HashMap<>();
         this.publicParameters = publicParameters;
-        updateMap();
-    }
-
-    private void updateMap() {
-        List<Integer> serverIDs = publicParameters.getServers();
-
-        // Remove servers no longer active
-        map.keySet().removeIf(Predicate.not(serverIDs::contains));
-
-        //Add new
-        serverIDs.forEach(serverId -> map.putIfAbsent(serverId, new LinkedList<>()));
     }
 
     public void put(PartialInfo partialInfo) {
-        map.putIfAbsent(partialInfo.getServerID(), new LinkedList<>());
-        map.get(partialInfo.getServerID()).add(partialInfo);
+        substations.putIfAbsent(partialInfo.getSubstationID(), new Substation());
+        Substation substation = substations.get(partialInfo.getSubstationID());
+        substation.putIfAbsent(partialInfo.getFid(), new Fid());
+        Fid fidData = substation.get(partialInfo.getFid());
+        fidData.put(partialInfo.getServerID(), partialInfo);
     }
 
-    public List<ClientInfo> getRSAProofComponents(int transformatorID) {
-        List<ClientInfo[]> rsaProofComponentList = map.values().stream()
-                .map(Queue::peek)
-                .filter(Objects::nonNull)
-                .map(PartialInfo::getClientInfos)
-                .collect(Collectors.toList());
-        ClientInfo[] base = rsaProofComponentList.get(0);
-        return Arrays.asList(base);
+    public Fid getFid(int substationID, int fid) {
+        return substations.get(substationID).get(fid);
     }
 
-    public void pop() {
-        map.values().stream().filter(p -> !p.isEmpty()).forEach(Queue::remove); // TODO: 2020-03-12 remove bad fault tolerance
+
+    public boolean canCompute(int substationID, int fid) { // TODO: 2020-02-24 Check with PP how many clients
+        List<Integer> clientIDs = publicParameters.getServers();
+        return substations.get(substationID).get(fid).keySet().containsAll(clientIDs);
     }
 
-    public boolean canCompute() {
-        updateMap();
-        return map.values().stream().noneMatch(Queue::isEmpty);
+    private class Substation extends HashMap<Integer, Fid> {
     }
 
-    public List<BigInteger> getClientProofs(int id) {
-        List<List<BigInteger>> clientProofsList = map.values()
-                .stream()
-                .map(Queue::peek)
-                .filter(Objects::nonNull)
-                .map(PartialInfo::getClientInfos)
-                .map((ClientInfo[] t) ->
-                        Arrays.stream(t)
-                                .map(ClientInfo::getClientProof)
-                                .collect(Collectors.toList()))
-                .collect(Collectors.toList());
-        List<BigInteger> base = clientProofsList.get(0);
+    public class Fid extends HashMap<Integer, PartialInfo> {
 
-        log.debug("This is client list - {}", clientProofsList);
-
-        if (clientProofsList.stream().allMatch(base::containsAll)) {
-            return base;
-        } else {
-            log.error("All ClientProofList do not match\n {}", clientProofsList);
-            throw new RuntimeException();
+        public List<BigInteger> getShares() {
+            return values().stream().map(PartialInfo::getHomomorphicPartialProof).collect(Collectors.toList());
         }
+
+        public List<ClientInfo> getRSAProofComponents() {
+            List<ClientInfo[]> rsaProofComponentList = values().stream()
+                    .map(PartialInfo::getClientInfos)
+                    .collect(Collectors.toList());
+            ClientInfo[] base = rsaProofComponentList.get(0);
+            return Arrays.asList(base);
+        }
+
+        public List<BigInteger> getClientProofs() {
+            List<List<BigInteger>> clientProofsList = values()
+                    .stream()
+                    .map(PartialInfo::getClientInfos)
+                    .map((ClientInfo[] t) ->
+                            Arrays.stream(t)
+                                    .map(ClientInfo::getClientProof)
+                                    .collect(Collectors.toList()))
+                    .collect(Collectors.toList());
+            List<BigInteger> base = clientProofsList.get(0);
+
+            log.debug("This is client list - {}", clientProofsList);
+
+            if (clientProofsList.stream().allMatch(base::containsAll)) {
+                return base;
+            } else {
+                log.error("All ClientProofList do not match\n {}", clientProofsList);
+                throw new RuntimeException();
+            }
+        }
+
+        public Map<Integer, BigInteger> getPartialResultsInfo(int id) {
+            return values()
+                    .stream()
+                    .collect(Collectors.toMap(PartialInfo::getServerID, PartialInfo::getPartialResult));
+        }
+
     }
 
-    public Map<Integer, BigInteger> getPartialResultsInfo(int id) {
-        return map.values()
-                .stream()
-                .map(Queue::peek)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(PartialInfo::getServerID, PartialInfo::getPartialResult));
-    }
 }

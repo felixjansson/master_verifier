@@ -22,7 +22,7 @@ public class RSAThreshold extends HomomorphicHash {
         super(publicParameters);
     }
 
-    public BigInteger rsaFinalProof(List<ClientInfo> rsaProofComponents, int transformatorID, VerifierBuffer buffer) {
+    public BigInteger rsaFinalProof(List<ClientInfo> rsaProofComponents, int substationID, BigInteger lastClientProof) {
         if (rsaProofComponents.isEmpty())
             return null;
         return rsaProofComponents.stream()
@@ -38,12 +38,11 @@ public class RSAThreshold extends HomomorphicHash {
                         return res;
                     } catch (Exception e) {
                         log.info(e.getMessage());
-                        buffer.pop();
                     }
                     return null;
                 })
-                .reduce(ONE, BigInteger::multiply)
-                .mod(publicParameters.getFieldBase(transformatorID));
+                .reduce(lastClientProof, BigInteger::multiply)
+                .mod(publicParameters.getFieldBase(substationID));
     }
 
     private BigInteger clientFinalProof(BigInteger pk, BigInteger clientProof, BigInteger[] serverProofs, BigInteger rsaN, double determinant) {

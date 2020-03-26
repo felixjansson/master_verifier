@@ -23,28 +23,28 @@ public class HomomorphicHash {
     }
 
 
-    public BigInteger finalEval(Map<Integer, BigInteger> partialResultInfo, int transformatorID) {
+    public BigInteger finalEval(Map<Integer, BigInteger> partialResultInfo, int substationID) {
         return partialResultInfo.values()
                 .stream()
                 .reduce(BigInteger.ZERO, BigInteger::add)
-                .mod(publicParameters.getFieldBase(transformatorID));
+                .mod(publicParameters.getFieldBase(substationID));
     }
 
-    public BigInteger hashFinalProof(List<BigInteger> partialProofsInfo, int transformatorID) {
-        return paperFinalProof(partialProofsInfo, transformatorID);
+    public BigInteger hashFinalProof(List<BigInteger> partialProofsInfo, int substationID) {
+        return paperFinalProof(partialProofsInfo, substationID);
     }
 
-    public BigInteger paperFinalProof(List<BigInteger> partialProofs, int transformatorID) {
+    public BigInteger paperFinalProof(List<BigInteger> partialProofs, int substationID) {
         return partialProofs.stream()
-                .reduce(BigInteger.ONE, BigInteger::multiply).mod(publicParameters.getFieldBase(transformatorID));
+                .reduce(BigInteger.ONE, BigInteger::multiply).mod(publicParameters.getFieldBase(substationID));
     }
 
-    public boolean verify(int transformatorID, BigInteger result, BigInteger serverProof, List<BigInteger> clientProofs) {
+    public boolean verify(int substationID, BigInteger result, BigInteger serverProof, List<BigInteger> clientProofs) {
         if (serverProof == null)
             return false;
-        BigInteger fieldBase = publicParameters.getFieldBase(transformatorID);
+        BigInteger fieldBase = publicParameters.getFieldBase(substationID);
         BigInteger clientProof = clientProofs.stream().reduce(BigInteger.ONE, BigInteger::multiply).mod(fieldBase);
-        BigInteger resultProof = hash(result, fieldBase, publicParameters.getGenerator(transformatorID));
+        BigInteger resultProof = hash(result, fieldBase, publicParameters.getGenerator(substationID));
         boolean clientEqResult = clientProof.equals(resultProof);
         boolean clientEqServer = clientProof.equals(serverProof);
         if (!(clientEqResult && clientEqServer))
