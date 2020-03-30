@@ -5,11 +5,11 @@ import java.util.Arrays;
 
 public class ClientInfo {
 
-    protected BigInteger rsaN;
-    protected BigInteger clientProof;
-    protected BigInteger[] rsaProofComponent;
-    protected double rsaDeterminant;
-    protected BigInteger publicKey;
+    private BigInteger rsaN;
+    private BigInteger clientProof;
+    private BigInteger[] rsaProofComponent;
+    private double rsaDeterminant;
+    private BigInteger publicKey;
 
 
     public BigInteger getRsaN() {

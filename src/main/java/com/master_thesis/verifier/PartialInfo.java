@@ -20,8 +20,10 @@ public class PartialInfo {
                 ", serverID=" + serverID +
                 ", homomorphicPartialProof=" + homomorphicPartialProof +
                 ", clientInfos=" + Arrays.toString(clientInfos) +
+                ", fid=" + fid +
                 '}';
     }
+
 
     public BigInteger getPartialResult() {
         return partialResult;

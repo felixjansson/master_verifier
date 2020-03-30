@@ -6,10 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
@@ -50,7 +47,7 @@ public class VerifierBuffer {
 
     public class Fid extends HashMap<Integer, PartialInfo> {
 
-        public List<BigInteger> getShares() {
+        public List<BigInteger> getHomomorphicPartialProofs() {
             return values().stream().map(PartialInfo::getHomomorphicPartialProof).collect(Collectors.toList());
         }
 
@@ -62,6 +59,10 @@ public class VerifierBuffer {
             return Arrays.asList(base);
         }
 
+        public boolean hasRSAComponents(){
+            return values().stream().map(PartialInfo::getClientInfos).anyMatch(Objects::nonNull);
+        }
+
         public List<BigInteger> getClientProofs() {
             List<List<BigInteger>> clientProofsList = values()
                     .stream()
@@ -71,6 +72,7 @@ public class VerifierBuffer {
                                     .map(ClientInfo::getClientProof)
                                     .collect(Collectors.toList()))
                     .collect(Collectors.toList());
+
             List<BigInteger> base = clientProofsList.get(0);
 
             log.debug("This is client list - {}", clientProofsList);

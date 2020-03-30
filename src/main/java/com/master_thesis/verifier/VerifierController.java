@@ -1,6 +1,7 @@
 package com.master_thesis.verifier;
 
 import ch.qos.logback.classic.Logger;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigInteger;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -18,14 +20,18 @@ public class VerifierController {
 
     private static final Logger log = (Logger) LoggerFactory.getLogger(VerifierController.class);
     private VerifierBuffer buffer;
+    private ClientBuffer clientBuffer;
     private Lock bufferLock;
-    private RSAThreshold verifier;
+    private RSAThreshold rsaThresholdVerifier;
+    private HomomorphicHash homomorphicHashVerifier;
     private PublicParameters publicParameters;
 
     @Autowired
-    public VerifierController(VerifierBuffer buffer, RSAThreshold verifier, PublicParameters publicParameters) {
+    public VerifierController(VerifierBuffer buffer, ClientBuffer clientBuffer, RSAThreshold rsaThresholdVerifier, HomomorphicHash homomorphicHashVerifier, PublicParameters publicParameters) {
         this.buffer = buffer;
-        this.verifier = verifier;
+        this.clientBuffer = clientBuffer;
+        this.rsaThresholdVerifier = rsaThresholdVerifier;
+        this.homomorphicHashVerifier = homomorphicHashVerifier;
         this.publicParameters = publicParameters;
         this.bufferLock = new ReentrantLock();
     }
@@ -45,23 +51,35 @@ public class VerifierController {
         }
     }
 
+    @PostMapping(value = "/client/proofComponent")
+    void receiveProofComponent(@RequestBody PartialClientInfo partialClientInfo){
+       clientBuffer.put(partialClientInfo);
+    }
+
     private void performComputations(int substationID, int fid) {
 
         VerifierBuffer.Fid fidData = buffer.getFid(substationID, fid);
-
-        BigInteger result = verifier.finalEval(fidData.getPartialResultsInfo(substationID), substationID);
-        List<BigInteger> clientProofs = fidData.getClientProofs();
         BigInteger lastClientProof = publicParameters.getLastClientProof(substationID, fid);
+
+        // Homomorphic Hash verification
+        List<BigInteger> clientProofs = clientBuffer.getClientProofs(substationID,fid);
         clientProofs.add(lastClientProof);
+        clientBuffer.removeFid(substationID, fid);
+        BigInteger hashResult = homomorphicHashVerifier.finalEval(fidData.getPartialResultsInfo(substationID), substationID);
+        BigInteger hashServerProof = homomorphicHashVerifier.finalProof(fidData.getHomomorphicPartialProofs(), substationID);
+        boolean hashValidResult = homomorphicHashVerifier.verify(substationID, hashResult, hashServerProof, clientProofs);
+        log.info("Hash: Writing to DB: result:{} server proof:{} valid:{}", hashResult, hashServerProof, hashValidResult);
 
-        BigInteger rsaServerProof = verifier.rsaFinalProof(fidData.getRSAProofComponents(), substationID, lastClientProof);
-        BigInteger hashServerProof = verifier.hashFinalProof(clientProofs, substationID);
+        // RSA verification
+        if (fidData.hasRSAComponents()){
+            List<ClientInfo> rsaProofComponents = fidData.getRSAProofComponents();
+            BigInteger rsaResult = rsaThresholdVerifier.finalEval(fidData.getPartialResultsInfo(substationID), substationID);
+            BigInteger rsaServerProof = rsaThresholdVerifier.finalProof(rsaProofComponents, substationID, lastClientProof);
+            boolean rsaValidResult = rsaThresholdVerifier.verify(substationID, rsaResult, rsaServerProof, clientProofs);
+            log.info("RSA: Writing to DB: result:{} server proof:{} valid:{}", rsaResult, rsaServerProof, rsaValidResult);
+        }
 
-        boolean rsaValidResult = verifier.verify(substationID, result, rsaServerProof, clientProofs);
-        boolean hashValidResult = verifier.verify(substationID, result, hashServerProof, clientProofs);
-        log.info("RSA: Writing to DB: result:{} server proof:{} valid:{}", result, rsaServerProof, rsaValidResult);
-        log.info("Hash: Writing to DB: result:{} server proof:{} valid:{}", result, hashServerProof, hashValidResult);
-        DatabaseConnection.put(result, rsaServerProof, rsaValidResult);
+//        DatabaseConnection.put(rsaResult, rsaServerProof, rsaValidResult);
     }
 
 }

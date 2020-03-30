@@ -8,21 +8,30 @@ import org.springframework.stereotype.Component;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static java.math.BigInteger.ONE;
 import static java.math.BigInteger.ZERO;
 
 @Component
-public class RSAThreshold extends HomomorphicHash {
+public class RSAThreshold {
 
     private final static Logger log = (Logger) LoggerFactory.getLogger(RSAThreshold.class);
+    private PublicParameters publicParameters;
 
     @Autowired
     public RSAThreshold(PublicParameters publicParameters) {
-        super(publicParameters);
+        this.publicParameters = publicParameters;
     }
 
-    public BigInteger rsaFinalProof(List<ClientInfo> rsaProofComponents, int substationID, BigInteger lastClientProof) {
+    public BigInteger finalEval(Map<Integer, BigInteger> partialResultInfo, int substationID) {
+        return partialResultInfo.values()
+                .stream()
+                .reduce(BigInteger.ZERO, BigInteger::add)
+                .mod(publicParameters.getFieldBase(substationID));
+    }
+
+    public BigInteger finalProof(List<ClientInfo> rsaProofComponents, int substationID, BigInteger lastClientProof) {
         if (rsaProofComponents.isEmpty())
             return null;
         return rsaProofComponents.stream()
@@ -43,6 +52,24 @@ public class RSAThreshold extends HomomorphicHash {
                 })
                 .reduce(lastClientProof, BigInteger::multiply)
                 .mod(publicParameters.getFieldBase(substationID));
+    }
+
+
+    public boolean verify(int substationID, BigInteger result, BigInteger serverProof, List<BigInteger> clientProofs) {
+        if (serverProof == null)
+            return false;
+        BigInteger fieldBase = publicParameters.getFieldBase(substationID);
+        BigInteger clientProof = clientProofs.stream().reduce(BigInteger.ONE, BigInteger::multiply).mod(fieldBase);
+        BigInteger resultProof = hash(result, fieldBase, publicParameters.getGenerator(substationID));
+        boolean clientEqResult = clientProof.equals(resultProof);
+        boolean clientEqServer = clientProof.equals(serverProof);
+        if (!(clientEqResult && clientEqServer))
+            log.info("clientProof: {}, resultProof: {}, serverProof:{}", clientProof, resultProof, serverProof);
+        return clientProof.equals(resultProof) && clientProof.equals(serverProof);
+    }
+
+    public BigInteger hash(BigInteger input, BigInteger fieldBase, BigInteger generator) {
+        return generator.modPow(input, fieldBase);
     }
 
     private BigInteger clientFinalProof(BigInteger pk, BigInteger clientProof, BigInteger[] serverProofs, BigInteger rsaN, double determinant) {

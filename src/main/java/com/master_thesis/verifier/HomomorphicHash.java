@@ -30,7 +30,7 @@ public class HomomorphicHash {
                 .mod(publicParameters.getFieldBase(substationID));
     }
 
-    public BigInteger hashFinalProof(List<BigInteger> partialProofsInfo, int substationID) {
+    public BigInteger finalProof(List<BigInteger> partialProofsInfo, int substationID) {
         return paperFinalProof(partialProofsInfo, substationID);
     }
 
