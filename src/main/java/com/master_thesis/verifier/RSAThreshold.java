@@ -1,14 +1,17 @@
 package com.master_thesis.verifier;
 
 import ch.qos.logback.classic.Logger;
+import com.master_thesis.verifier.data.RSAServerData;
+import com.master_thesis.verifier.utils.PublicParameters;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Stream;
 
 import static java.math.BigInteger.ONE;
 import static java.math.BigInteger.ZERO;
@@ -24,14 +27,13 @@ public class RSAThreshold {
         this.publicParameters = publicParameters;
     }
 
-    public BigInteger finalEval(Map<Integer, BigInteger> partialResultInfo, int substationID) {
-        return partialResultInfo.values()
-                .stream()
+    public BigInteger finalEval(Stream<BigInteger> partialResultInfo, int substationID) {
+        return partialResultInfo
                 .reduce(BigInteger.ZERO, BigInteger::add)
                 .mod(publicParameters.getFieldBase(substationID));
     }
 
-    public BigInteger finalProof(List<ClientInfo> rsaProofComponents, int substationID, BigInteger lastClientProof) {
+    public BigInteger finalProof(Collection<RSAServerData.ProofData> rsaProofComponents, int substationID, BigInteger lastClientProof) {
         if (rsaProofComponents.isEmpty())
             return null;
         return rsaProofComponents.stream()

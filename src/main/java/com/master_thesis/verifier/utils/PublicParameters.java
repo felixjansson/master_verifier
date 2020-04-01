@@ -1,4 +1,4 @@
-package com.master_thesis.verifier;
+package com.master_thesis.verifier.utils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

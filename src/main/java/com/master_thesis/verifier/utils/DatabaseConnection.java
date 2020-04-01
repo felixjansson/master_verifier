@@ -1,4 +1,4 @@
-package com.master_thesis.verifier;
+package com.master_thesis.verifier.utils;
 
 import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
