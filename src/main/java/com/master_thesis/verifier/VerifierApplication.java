@@ -146,11 +146,8 @@ public class VerifierApplication {
         BigInteger fieldBase = publicParameters.getFieldBase(substationID);
         BigInteger linearResult = linearSignature.finalEval(serverData.stream().map(LinearServerData::getPartialResult), fieldBase);
         LinearPublicData publicData = publicParameters.getLinearPublicData(substationID, fid);
-        Integer[] a = new Integer[clientData.size()];
-        Arrays.fill(a, 1);
-        List<Integer> alphas = Arrays.asList(a);
         BigInteger rn = publicParameters.getRn(substationID, fid);
-        LinearProofData proofData = linearSignature.finalProof(clientData, alphas, publicData);
+        LinearProofData proofData = linearSignature.finalProof(clientData, publicData);
         boolean validResult = linearSignature.verify(linearResult, proofData, publicData, rn);
         log.info("[FID {}] Linear: result:{} valid:{}", fid, linearResult, validResult);
     }

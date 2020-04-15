@@ -1,6 +1,5 @@
 package com.master_thesis.verifier;
 
-import com.codepoetics.protonpack.StreamUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.master_thesis.verifier.data.LinearClientData;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Component;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component
@@ -27,33 +25,19 @@ public class LinearSignature {
                 .mod(fieldBase);
     }
 
-    public LinearProofData finalProof(List<LinearClientData> clientData, List<Integer> alphas, LinearPublicData publicData) {
+    public LinearProofData finalProof(List<LinearClientData> clientData, LinearPublicData publicData) {
         BigInteger eN = publicData.getN().multiply(publicData.getFidPrime());
         BigInteger nRoof = publicData.getNRoof();
 
-        List<BigInteger> f = alphas.stream().map(x -> BigInteger.valueOf(x).mod(eN)).collect(Collectors.toList());
-        List<BigInteger> fPrime = StreamUtils.zip(
-                alphas.stream().map(BigInteger::valueOf),
-                f.stream(),
-                (a, x) -> a.subtract(x).divide(eN)).collect(Collectors.toList());
-
-        BigInteger s = StreamUtils.zip(alphas.stream().map(BigInteger::valueOf), clientData.stream().map(LinearClientData::getsShare),
-                BigInteger::multiply).reduce(BigInteger.ZERO, BigInteger::add);
+        BigInteger s = clientData.stream().map(LinearClientData::getsShare).reduce(BigInteger.ZERO, BigInteger::add);
         BigInteger sPrime = s.subtract(s.mod(eN)).divide(eN);
 //      We compute xTilde in three steps by computing the numerator, denominator and combining them
-        BigInteger numerator = StreamUtils.zip(
-                clientData.stream().map(LinearClientData::getX),
-                alphas.stream(),
-                BigInteger::pow)
-                .reduce(BigInteger.ONE, BigInteger::multiply);
-        BigInteger denominator = publicData.getG().modPow(sPrime, nRoof)
-                .multiply(StreamUtils.zip(Arrays.stream(publicData.getH()), fPrime.stream(),
-                        (h, fp) -> h.pow(fp.intValue())).reduce(BigInteger.ONE, BigInteger::multiply))
-                .modInverse(nRoof);
+        BigInteger numerator = clientData.stream().map(LinearClientData::getX).reduce(BigInteger.ONE, BigInteger::multiply);
+        BigInteger denominator = publicData.getG().modPow(sPrime, nRoof).modInverse(nRoof);
 //      Note that we use modulo inverse and thus we have to use multiplication and not division
         BigInteger xTilde = numerator.multiply(denominator).mod(nRoof);
 
-        return new LinearProofData(s.mod(eN), xTilde, f);
+        return new LinearProofData(s.mod(eN), xTilde);
     }
 
     public boolean verify(BigInteger linearResult, LinearProofData proofData, LinearPublicData publicData, BigInteger rn) {
@@ -69,9 +53,7 @@ public class LinearSignature {
         lhs = lhs.multiply(publicData.getG1().modPow(rn, nRoof)).mod(nRoof);
 //      rhs (the sum of clients' secret)
         BigInteger rhs = publicData.getG().modPow(proofData.getS(), nRoof)
-                .multiply(StreamUtils.zip(Arrays.stream(publicData.getH()), proofData.getF().stream(),
-                        (h, f) -> h.modPow(f, nRoof))
-                        .reduce(BigInteger.ONE, BigInteger::multiply))
+                .multiply(Arrays.stream(publicData.getH()).reduce(BigInteger.ONE, BigInteger::multiply)).mod(nRoof)
                 .multiply(publicData.getG1().modPow(linearResult, nRoof))
                 .mod(nRoof);
 

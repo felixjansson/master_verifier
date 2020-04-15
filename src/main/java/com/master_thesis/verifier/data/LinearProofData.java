@@ -1,20 +1,17 @@
 package com.master_thesis.verifier.data;
 
 import java.math.BigInteger;
-import java.util.List;
 
 public class LinearProofData {
 
 
     private BigInteger s;
     private BigInteger xTilde;
-    private List<BigInteger> f;
 
-    public LinearProofData(BigInteger s, BigInteger xTilde, List<BigInteger> f) {
+    public LinearProofData(BigInteger s, BigInteger xTilde) {
 
         this.s = s;
         this.xTilde = xTilde;
-        this.f = f;
     }
 
     public BigInteger getS() {
@@ -25,7 +22,4 @@ public class LinearProofData {
         return xTilde;
     }
 
-    public List<BigInteger> getF() {
-        return f;
-    }
 }
