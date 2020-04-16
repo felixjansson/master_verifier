@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -29,8 +27,8 @@ import java.util.stream.Stream;
 public class VerifierApplication {
 
     private static final Logger log = (Logger) LoggerFactory.getLogger(VerifierApplication.class);
-    private ServerBuffer serverBuffer;
-    private ClientBuffer clientBuffer;
+    private DataBuffer serverBuffer;
+    private DataBuffer clientBuffer;
     private Lock bufferLock;
     private RSAThreshold rsaThresholdVerifier;
     private HomomorphicHash homomorphicHashVerifier;
@@ -38,108 +36,113 @@ public class VerifierApplication {
     private PublicParameters publicParameters;
 
     @Autowired
-    public VerifierApplication(ServerBuffer serverBuffer, ClientBuffer clientBuffer, RSAThreshold rsaThresholdVerifier, HomomorphicHash homomorphicHashVerifier, LinearSignature linearSignature, PublicParameters publicParameters) {
-        this.serverBuffer = serverBuffer;
-        this.clientBuffer = clientBuffer;
+    public VerifierApplication(RSAThreshold rsaThresholdVerifier, HomomorphicHash homomorphicHashVerifier, LinearSignature linearSignature, PublicParameters publicParameters) {
+        this.serverBuffer = new DataBuffer();
+        this.clientBuffer = new DataBuffer();
+        this.bufferLock = new ReentrantLock();
         this.rsaThresholdVerifier = rsaThresholdVerifier;
         this.homomorphicHashVerifier = homomorphicHashVerifier;
         this.linearSignature = linearSignature;
         this.publicParameters = publicParameters;
-        this.bufferLock = new ReentrantLock();
     }
 
     @PostMapping(value = "/server/hash-data")
     public void receiveHashServerData(@RequestBody HashServerData serverData) throws InterruptedException {
-        boolean isUnlocked = bufferLock.tryLock(1, TimeUnit.SECONDS);
-        if (isUnlocked) {
-            try {
-                log.debug("Got {}", serverData);
-                serverBuffer.put(serverData);
-                if (serverBuffer.canCompute(serverData.getSubstationID(), serverData.getFid()))
-                    new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
-            } finally {
-                bufferLock.unlock();
-            }
-        }
+        boolean isAllDataAvailable = putData(serverData, serverBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
     }
 
     @PostMapping(value = "/server/rsa-data")
     public void receiveRSAServerData(@RequestBody RSAServerData serverData) throws InterruptedException {
-        boolean isUnlocked = bufferLock.tryLock(1, TimeUnit.SECONDS);
-        if (isUnlocked) {
-            try {
-                log.debug("Got {}", serverData);
-                serverBuffer.put(serverData);
-                if (serverBuffer.canCompute(serverData.getSubstationID(), serverData.getFid()))
-                    new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
-            } finally {
-                bufferLock.unlock();
-            }
-        }
+        boolean isAllDataAvailable = putData(serverData, serverBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
     }
 
     @PostMapping(value = "/server/linear-data")
-    public void receiveLinearServerData(@RequestBody LinearServerData serverData) throws  InterruptedException{
-        boolean isUnlocked = bufferLock.tryLock(1, TimeUnit.SECONDS);
-        if (isUnlocked) {
-            try {
-                log.debug("Got {}", serverData);
-                serverBuffer.put(serverData);
-                if (serverBuffer.canCompute(serverData.getSubstationID(), serverData.getFid()))
-                    new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
-            } finally {
-                bufferLock.unlock();
-            }
-        }
+    public void receiveLinearServerData(@RequestBody LinearServerData serverData) throws InterruptedException {
+        boolean isAllDataAvailable = putData(serverData, serverBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
     }
-
-    @PostMapping(value = "/client/linear-data")
-    void receiveLinearClientData(@RequestBody LinearClientData clientData) {
-        log.debug("Got {}", clientData);
-        clientBuffer.put(clientData);
-    }
-
 
     @PostMapping(value = "/client/hash-data")
-    void receiveHashClientData(@RequestBody HashClientData clientData) {
-        log.debug("Got {}", clientData);
-        clientBuffer.put(clientData);
+    void receiveHashClientData(@RequestBody HashClientData clientData) throws InterruptedException {
+        boolean isAllDataAvailable = putData(clientData, clientBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
     }
 
 
     @PostMapping(value = "/client/rsa-data")
-    void receiveRSAClientData(@RequestBody RSAClientData clientData) {
-        log.debug("Got {}", clientData);
-        clientBuffer.put(clientData);
+    void receiveRSAClientData(@RequestBody RSAClientData clientData) throws InterruptedException {
+        boolean isAllDataAvailable = putData(clientData, clientBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
     }
+
+    @PostMapping(value = "/client/linear-data")
+    void receiveLinearClientData(@RequestBody LinearClientData clientData) throws InterruptedException {
+        boolean isAllDataAvailable = putData(clientData, clientBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
+    }
+
+    private boolean putData(ComputationData data, DataBuffer buffer) throws InterruptedException {
+        boolean isUnlocked = bufferLock.tryLock(1, TimeUnit.SECONDS);
+        boolean canCompute = false;
+        if (isUnlocked) {
+            try {
+                log.debug("Got {}", data);
+                buffer.put(data);
+                canCompute = canCompute(data.getSubstationID(), data.getFid());
+            } finally {
+                bufferLock.unlock();
+            }
+        }
+        return canCompute;
+    }
+
+    private boolean canCompute(int substationID, int fid) {
+        List<Integer> servers = publicParameters.getServers(); // TODO: 16/04/2020 Add substationID, fid
+        List<Integer> clients = publicParameters.getClients(substationID, fid);
+        if (serverBuffer.contains(substationID, fid) && clientBuffer.contains(substationID, fid)){
+            boolean serverDataAvailable = serverBuffer.getFid(substationID, fid).keySet().containsAll(servers);
+            boolean clientDataAvailable = clientBuffer.getFid(substationID, fid).keySet().containsAll(clients);
+            return serverDataAvailable && clientDataAvailable;
+        }
+        return false;
+    }
+
 
     private void performComputations(int substationID, int fid) {
 
-        ServerBuffer.Fid fidData = serverBuffer.getFid(substationID, fid);
+        DataBuffer.Fid bufferServerData = serverBuffer.getFid(substationID, fid);
+        DataBuffer.Fid bufferClientData = clientBuffer.getFid(substationID, fid);
 
-        log.info("### Perform computation fid: {} Substation: {} Construction {}", fid, substationID, fidData.getConstruction());
+        log.info("### Perform computation fid: {} Substation: {} Construction {}", fid, substationID, bufferServerData.getConstruction());
 
         // Homomorphic Hash verification
-        if (fidData.getConstruction().equals(Construction.HASH)) {
-            List<HashServerData> serverData = fidData.values().stream().map(val -> (HashServerData) val).collect(Collectors.toList());
-            List<HashClientData> clientData = clientBuffer.getFid(substationID, fid).values().stream().map(val -> (HashClientData) val).collect(Collectors.toList());
+        if (bufferServerData.getConstruction().equals(Construction.HASH)) {
+            List<HashServerData> serverData = bufferServerData.values().stream().map(val -> (HashServerData) val).collect(Collectors.toList());
+            List<HashClientData> clientData = bufferClientData.values().stream().map(val -> (HashClientData) val).collect(Collectors.toList());
             performHomomorphicHashComputation(serverData, clientData, substationID, fid);
         }
 
-
         // RSA verification
-        if (fidData.getConstruction().equals(Construction.RSA)) {
-            List<RSAServerData> serverData = fidData.values().stream().map(val -> (RSAServerData) val).collect(Collectors.toList());
-            List<RSAClientData> clientData = clientBuffer.getFid(substationID, fid).values().stream().map(val -> (RSAClientData) val).collect(Collectors.toList());
+        if (bufferServerData.getConstruction().equals(Construction.RSA)) {
+            List<RSAServerData> serverData = bufferServerData.values().stream().map(val -> (RSAServerData) val).collect(Collectors.toList());
+            List<RSAClientData> clientData = bufferClientData.values().stream().map(val -> (RSAClientData) val).collect(Collectors.toList());
             performRSAThresholdComputation(serverData, clientData, substationID, fid);
         }
 
-        if (fidData.getConstruction().equals(Construction.LINEAR)){
-            List<LinearServerData> serverData = fidData.values().stream().map(val -> (LinearServerData) val).collect(Collectors.toList());
-            List<LinearClientData> clientData = clientBuffer.getFid(substationID, fid).values().stream().map(val -> (LinearClientData) val).collect(Collectors.toList());
+        // Linear verification
+        if (bufferServerData.getConstruction().equals(Construction.LINEAR)) {
+            List<LinearServerData> serverData = bufferServerData.values().stream().map(val -> (LinearServerData) val).collect(Collectors.toList());
+            List<LinearClientData> clientData = bufferClientData.values().stream().map(val -> (LinearClientData) val).collect(Collectors.toList());
             performLinearSignatureComputation(serverData, clientData, substationID, fid);
         }
-
     }
 
     private void performLinearSignatureComputation(List<LinearServerData> serverData, List<LinearClientData> clientData, int substationID, int fid) {

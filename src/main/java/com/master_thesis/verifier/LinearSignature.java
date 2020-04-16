@@ -33,7 +33,7 @@ public class LinearSignature {
         BigInteger sPrime = s.subtract(s.mod(eN)).divide(eN);
 //      We compute xTilde in three steps by computing the numerator, denominator and combining them
         BigInteger numerator = clientData.stream().map(LinearClientData::getX).reduce(BigInteger.ONE, BigInteger::multiply);
-        BigInteger denominator = publicData.getG().modPow(sPrime, nRoof).modInverse(nRoof);
+        BigInteger denominator = publicData.getG1().modPow(sPrime, nRoof).modInverse(nRoof);
 //      Note that we use modulo inverse and thus we have to use multiplication and not division
         BigInteger xTilde = numerator.multiply(denominator).mod(nRoof);
 
@@ -50,11 +50,11 @@ public class LinearSignature {
 //      lhs (clients' secret and nonce)
         BigInteger lhs = proofData.getXTilde().modPow(eN, nRoof);
 //      xTilde contains all nonce from the clients. We include Rn to remove these nonce to receive the correct result
-        lhs = lhs.multiply(publicData.getG1().modPow(rn, nRoof)).mod(nRoof);
+        lhs = lhs.multiply(publicData.getG2().modPow(rn, nRoof)).mod(nRoof);
 //      rhs (the sum of clients' secret)
-        BigInteger rhs = publicData.getG().modPow(proofData.getS(), nRoof)
+        BigInteger rhs = publicData.getG1().modPow(proofData.getS(), nRoof)
                 .multiply(Arrays.stream(publicData.getH()).reduce(BigInteger.ONE, BigInteger::multiply)).mod(nRoof)
-                .multiply(publicData.getG1().modPow(linearResult, nRoof))
+                .multiply(publicData.getG2().modPow(linearResult, nRoof))
                 .mod(nRoof);
 
         boolean correctResult = lhs.equals(rhs);

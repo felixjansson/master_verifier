@@ -3,25 +3,19 @@ package com.master_thesis.verifier.data;
 import ch.qos.logback.classic.Logger;
 import com.master_thesis.verifier.utils.PublicParameters;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
-import java.util.List;
 
 @Component
-public class ServerBuffer {
+public class DataBuffer {
 
-    private static final Logger log = (Logger) LoggerFactory.getLogger(ServerBuffer.class);
+    private static final Logger log = (Logger) LoggerFactory.getLogger(DataBuffer.class);
 
-    PublicParameters publicParameters;
     private HashMap<Integer, Substation> substations;
 
-
-    @Autowired
-    public ServerBuffer(PublicParameters publicParameters) {
+    public DataBuffer() {
         substations = new HashMap<>();
-        this.publicParameters = publicParameters;
     }
 
     public void put(ComputationData serverData) {
@@ -36,10 +30,8 @@ public class ServerBuffer {
         return substations.get(substationID).get(fid);
     }
 
-
-    public boolean canCompute(int substationID, int fid) {
-        List<Integer> serverIDs = publicParameters.getServers();
-        return substations.get(substationID).get(fid).keySet().containsAll(serverIDs);
+    public boolean contains(int substationID, int fid) {
+        return substations.containsKey(substationID) && substations.get(substationID).containsKey(fid);
     }
 
     private class Substation extends HashMap<Integer, Fid> {

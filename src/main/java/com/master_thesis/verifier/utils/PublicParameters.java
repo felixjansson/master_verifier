@@ -88,4 +88,12 @@ public class PublicParameters {
         }
 
     }
+
+    @SneakyThrows
+    public List<Integer> getClients(int substationID, int fid) {
+        URI uri = URI.create("http://localhost:4000/api/client/list/" + substationID + "/" + fid);
+        HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+        return objectMapper.readValue(response.body(), List.class);
+    }
 }
