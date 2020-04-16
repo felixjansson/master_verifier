@@ -34,9 +34,11 @@ public class VerifierApplication {
     private HomomorphicHash homomorphicHashVerifier;
     private LinearSignature linearSignature;
     private PublicParameters publicParameters;
+    private NonceDistribution nonceDistribution;
 
     @Autowired
-    public VerifierApplication(RSAThreshold rsaThresholdVerifier, HomomorphicHash homomorphicHashVerifier, LinearSignature linearSignature, PublicParameters publicParameters) {
+    public VerifierApplication(RSAThreshold rsaThresholdVerifier, HomomorphicHash homomorphicHashVerifier, LinearSignature linearSignature, NonceDistribution nonceDistribution, PublicParameters publicParameters) {
+        this.nonceDistribution = nonceDistribution;
         this.serverBuffer = new DataBuffer();
         this.clientBuffer = new DataBuffer();
         this.bufferLock = new ReentrantLock();
@@ -53,11 +55,25 @@ public class VerifierApplication {
             new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
     }
 
+    @PostMapping(value = "/client/hash-data")
+    public void receiveHashClientData(@RequestBody HashClientData clientData) throws InterruptedException {
+        boolean isAllDataAvailable = putData(clientData, clientBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
+    }
+
     @PostMapping(value = "/server/rsa-data")
     public void receiveRSAServerData(@RequestBody RSAServerData serverData) throws InterruptedException {
         boolean isAllDataAvailable = putData(serverData, serverBuffer);
         if (isAllDataAvailable)
             new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
+    }
+
+    @PostMapping(value = "/client/rsa-data")
+    public void receiveRSAClientData(@RequestBody RSAClientData clientData) throws InterruptedException {
+        boolean isAllDataAvailable = putData(clientData, clientBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
     }
 
     @PostMapping(value = "/server/linear-data")
@@ -67,27 +83,27 @@ public class VerifierApplication {
             new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
     }
 
-    @PostMapping(value = "/client/hash-data")
-    void receiveHashClientData(@RequestBody HashClientData clientData) throws InterruptedException {
-        boolean isAllDataAvailable = putData(clientData, clientBuffer);
-        if (isAllDataAvailable)
-            new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
-    }
-
-
-    @PostMapping(value = "/client/rsa-data")
-    void receiveRSAClientData(@RequestBody RSAClientData clientData) throws InterruptedException {
-        boolean isAllDataAvailable = putData(clientData, clientBuffer);
-        if (isAllDataAvailable)
-            new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
-    }
-
     @PostMapping(value = "/client/linear-data")
-    void receiveLinearClientData(@RequestBody LinearClientData clientData) throws InterruptedException {
+    public void receiveLinearClientData(@RequestBody LinearClientData clientData) throws InterruptedException {
         boolean isAllDataAvailable = putData(clientData, clientBuffer);
         if (isAllDataAvailable)
             new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
     }
+
+    @PostMapping(value = "/server/nonce-data")
+    public void receiveLinearServerData(@RequestBody NonceServerData serverData) throws InterruptedException {
+        boolean isAllDataAvailable = putData(serverData, serverBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
+    }
+
+    @PostMapping(value = "/client/nonce-data")
+    public void receiveLinearClientData(@RequestBody NonceClientData clientData) throws InterruptedException {
+        boolean isAllDataAvailable = putData(clientData, clientBuffer);
+        if (isAllDataAvailable)
+            new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
+    }
+
 
     private boolean putData(ComputationData data, DataBuffer buffer) throws InterruptedException {
         boolean isUnlocked = bufferLock.tryLock(1, TimeUnit.SECONDS);
@@ -143,6 +159,23 @@ public class VerifierApplication {
             List<LinearClientData> clientData = bufferClientData.values().stream().map(val -> (LinearClientData) val).collect(Collectors.toList());
             performLinearSignatureComputation(serverData, clientData, substationID, fid);
         }
+
+        // Nonce verification
+        if (bufferServerData.getConstruction().equals(Construction.NONCE)) {
+            List<NonceServerData> serverData = bufferServerData.values().stream().map(val -> (NonceServerData) val).collect(Collectors.toList());
+            List<NonceClientData> clientData = bufferClientData.values().stream().map(val -> (NonceClientData) val).collect(Collectors.toList());
+            performNonceDistributionComputation(serverData, clientData, substationID, fid);
+        }
+        
+    }
+
+    private void performNonceDistributionComputation(List<NonceServerData> serverData, List<NonceClientData> clientData, int substationID, int fid) {
+        List<BigInteger> clientProofs = clientData.stream().map(NonceClientData::getProofComponent).collect(Collectors.toList());
+        BigInteger hashResult = nonceDistribution.finalEval(serverData.stream().map(NonceServerData::getPartialResult), substationID);
+        BigInteger nonceResult = nonceDistribution.finalNonce(serverData.stream().map(NonceServerData::getPartialNonce), substationID);
+        BigInteger hashServerProof = nonceDistribution.finalProof(serverData.stream().map(NonceServerData::getPartialProof), substationID);
+        boolean hashValidResult = nonceDistribution.verify(substationID, hashResult, hashServerProof, clientProofs, nonceResult);
+        log.info("[FID {}] Nonce: result:{} server proof:{} valid:{}", fid, hashResult, hashServerProof, hashValidResult);
     }
 
     private void performLinearSignatureComputation(List<LinearServerData> serverData, List<LinearClientData> clientData, int substationID, int fid) {
