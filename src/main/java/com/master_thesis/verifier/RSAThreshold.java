@@ -27,10 +27,9 @@ public class RSAThreshold {
         this.publicParameters = publicParameters;
     }
 
-    public BigInteger finalEval(Stream<BigInteger> partialResultInfo, int substationID) {
+    public BigInteger finalEval(Stream<BigInteger> partialResultInfo) {
         return partialResultInfo
-                .reduce(BigInteger.ZERO, BigInteger::add)
-                .mod(publicParameters.getFieldBase(substationID));
+                .reduce(BigInteger.ZERO, BigInteger::add);
     }
 
     public BigInteger finalProof(Collection<RSAServerData.ProofData> rsaProofComponents, int substationID, BigInteger lastClientProof) {

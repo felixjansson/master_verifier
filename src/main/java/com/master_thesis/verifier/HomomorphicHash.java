@@ -23,10 +23,9 @@ public class HomomorphicHash {
     }
 
 
-    public BigInteger finalEval(Stream<BigInteger> partialResultInfo, int substationID) {
+    public BigInteger finalEval(Stream<BigInteger> partialResultInfo) {
         return partialResultInfo
-                .reduce(BigInteger.ZERO, BigInteger::add)
-                .mod(publicParameters.getFieldBase(substationID));
+                .reduce(BigInteger.ZERO, BigInteger::add);
     }
 
     public BigInteger finalProof(Stream<BigInteger> partialProofs, int substationID) {

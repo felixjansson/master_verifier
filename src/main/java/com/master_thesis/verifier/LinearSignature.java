@@ -19,10 +19,9 @@ public class LinearSignature {
     private static final Logger log = (Logger) LoggerFactory.getLogger(LinearSignature.class);
 
 
-    public BigInteger finalEval(Stream<BigInteger> partialResultInfo, BigInteger fieldBase) {
+    public BigInteger finalEval(Stream<BigInteger> partialResultInfo) {
         return partialResultInfo
-                .reduce(BigInteger.ZERO, BigInteger::add)
-                .mod(fieldBase);
+                .reduce(BigInteger.ZERO, BigInteger::add);
     }
 
     public LinearProofData finalProof(List<LinearClientData> clientData, LinearPublicData publicData) {

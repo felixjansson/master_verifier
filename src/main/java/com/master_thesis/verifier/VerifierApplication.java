@@ -180,7 +180,7 @@ public class VerifierApplication {
 
     private void performLinearSignatureComputation(List<LinearServerData> serverData, List<LinearClientData> clientData, int substationID, int fid) {
         BigInteger fieldBase = publicParameters.getFieldBase(substationID);
-        BigInteger linearResult = linearSignature.finalEval(serverData.stream().map(LinearServerData::getPartialResult), fieldBase);
+        BigInteger linearResult = linearSignature.finalEval(serverData.stream().map(LinearServerData::getPartialResult));
         LinearPublicData publicData = publicParameters.getLinearPublicData(substationID, fid);
         BigInteger rn = publicParameters.getRn(substationID, fid);
         LinearProofData proofData = linearSignature.finalProof(clientData, publicData);
@@ -192,7 +192,7 @@ public class VerifierApplication {
         List<BigInteger> clientProofs = clientData.stream().map(HashClientData::getProofComponent).collect(Collectors.toList());
         BigInteger lastClientProof = publicParameters.getLastClientProof(substationID, fid);
         clientProofs.add(lastClientProof);
-        BigInteger hashResult = homomorphicHashVerifier.finalEval(serverData.stream().map(HashServerData::getPartialResult), substationID);
+        BigInteger hashResult = homomorphicHashVerifier.finalEval(serverData.stream().map(HashServerData::getPartialResult));
         BigInteger hashServerProof = homomorphicHashVerifier.finalProof(serverData.stream().map(HashServerData::getPartialProof), substationID);
         boolean hashValidResult = homomorphicHashVerifier.verify(substationID, hashResult, hashServerProof, clientProofs);
         log.info("[FID {}] Hash: result:{} server proof:{} valid:{}", fid, hashResult, hashServerProof, hashValidResult);
@@ -209,7 +209,7 @@ public class VerifierApplication {
         // Add the public key to each proof component computation.
         clientData.forEach(client -> serverProofInfo.get(client.getId()).setPublicKey(client.getPublicKey()));
 
-        BigInteger rsaResult = rsaThresholdVerifier.finalEval(partialResults, substationID);
+        BigInteger rsaResult = rsaThresholdVerifier.finalEval(partialResults);
         BigInteger rsaServerProof = rsaThresholdVerifier.finalProof(serverProofInfo.values(), substationID, lastClientProof);
         boolean rsaValidResult = rsaThresholdVerifier.verify(substationID, rsaResult, rsaServerProof, clientProofs);
 
