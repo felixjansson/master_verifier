@@ -48,6 +48,10 @@ public class VerifierApplication {
         this.publicParameters = publicParameters;
     }
 
+    /****
+     * START OF API END POINTS
+     ****/
+
     @PostMapping(value = "/server/hash-data")
     public void receiveHashServerData(@RequestBody HashServerData serverData) throws InterruptedException {
         boolean isAllDataAvailable = putData(serverData, serverBuffer);
@@ -104,7 +108,17 @@ public class VerifierApplication {
             new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
     }
 
+    /****
+     * END OF API END POINTS
+     ****/
 
+    /**
+     * Adds the incoming data in the correct buffer
+     * @param data to add
+     * @param buffer is the place to put the data
+     * @return true if the buffers are full and can verify the fid and substation computation
+     * @throws InterruptedException
+     */
     private boolean putData(ComputationData data, DataBuffer buffer) throws InterruptedException {
         boolean isUnlocked = bufferLock.tryLock(1, TimeUnit.SECONDS);
         boolean canCompute = false;
@@ -120,10 +134,16 @@ public class VerifierApplication {
         return canCompute;
     }
 
+    /**
+     * Check if the buffers contain the required information to compute the verification
+     * @param substationID an identifier for the substation in use
+     * @param fid and identifier for the computation
+     * @return true: if all clients and servers have sent there information and is put into the buffers
+     */
     private boolean canCompute(int substationID, int fid) {
         List<Integer> servers = publicParameters.getServers(); // TODO: 16/04/2020 Add substationID, fid
         List<Integer> clients = publicParameters.getClients(substationID, fid);
-        if (serverBuffer.contains(substationID, fid) && clientBuffer.contains(substationID, fid)){
+        if (serverBuffer.contains(substationID, fid) && clientBuffer.contains(substationID, fid)) {
             boolean serverDataAvailable = serverBuffer.getFid(substationID, fid).keySet().containsAll(servers);
             boolean clientDataAvailable = clientBuffer.getFid(substationID, fid).keySet().containsAll(clients);
             return serverDataAvailable && clientDataAvailable;
@@ -132,6 +152,11 @@ public class VerifierApplication {
     }
 
 
+    /**
+     * This function is internal and map the construction in use to the correct function
+     * @param substationID an identifier for the substation in use
+     * @param fid and identifier for the computation
+     */
     private void performComputations(int substationID, int fid) {
 
         DataBuffer.Fid bufferServerData = serverBuffer.getFid(substationID, fid);
@@ -166,7 +191,7 @@ public class VerifierApplication {
             List<NonceClientData> clientData = bufferClientData.values().stream().map(val -> (NonceClientData) val).collect(Collectors.toList());
             performNonceDistributionComputation(serverData, clientData, substationID, fid);
         }
-        
+
     }
 
     private void performNonceDistributionComputation(List<NonceServerData> serverData, List<NonceClientData> clientData, int substationID, int fid) {
@@ -178,42 +203,79 @@ public class VerifierApplication {
         log.info("[FID {}] Nonce: result:{} server proof:{} valid:{}", fid, hashResult, hashServerProof, hashValidResult);
     }
 
-    private void performLinearSignatureComputation(List<LinearServerData> serverData, List<LinearClientData> clientData, int substationID, int fid) {
-        BigInteger fieldBase = publicParameters.getFieldBase(substationID);
-        BigInteger linearResult = linearSignature.finalEval(serverData.stream().map(LinearServerData::getPartialResult));
-        LinearPublicData publicData = publicParameters.getLinearPublicData(substationID, fid);
-        BigInteger rn = publicParameters.getRn(substationID, fid);
-        LinearProofData proofData = linearSignature.finalProof(clientData, publicData);
-        boolean validResult = linearSignature.verify(linearResult, proofData, publicData, rn);
-        log.info("[FID {}] Linear: result:{} valid:{}", fid, linearResult, validResult);
-    }
-
+    /**
+     * This function handles all the computations for the Homomorphic Hash based construction
+     * @param serverData a list of all the data from the servers for the given fid and substation
+     * @param clientData a list of all the data from the clients for the given fid and substation
+     * @param substationID id for the substation
+     * @param fid id for the computation
+     */
     private void performHomomorphicHashComputation(List<HashServerData> serverData, List<HashClientData> clientData, int substationID, int fid) {
+//        Collect the clients' proof (tau) from the data object
         List<BigInteger> clientProofs = clientData.stream().map(HashClientData::getProofComponent).collect(Collectors.toList());
+//        Query the trusted third-party to receive Rn and add it to the list of client proofs
         BigInteger lastClientProof = publicParameters.getLastClientProof(substationID, fid);
         clientProofs.add(lastClientProof);
+//        Compute the final evaluation, i.e., compute the final sum of the servers partial sum
         BigInteger hashResult = homomorphicHashVerifier.finalEval(serverData.stream().map(HashServerData::getPartialResult));
+//        Compute the final proof, i.e., compute the product of the servers' partial proofs
         BigInteger hashServerProof = homomorphicHashVerifier.finalProof(serverData.stream().map(HashServerData::getPartialProof), substationID);
+//        Verify that the computations are correct.
         boolean hashValidResult = homomorphicHashVerifier.verify(substationID, hashResult, hashServerProof, clientProofs);
         log.info("[FID {}] Hash: result:{} server proof:{} valid:{}", fid, hashResult, hashServerProof, hashValidResult);
     }
 
 
+    /**
+     * This function handles all the computations for the RSA threshold based construction
+     * @param serverData a list of all the data from the servers for the given fid and substation
+     * @param clientData a list of all the data from the clients for the given fid and substation
+     * @param substationID id for the substation
+     * @param fid id for the computation
+     */
     private void performRSAThresholdComputation(List<RSAServerData> serverData, List<RSAClientData> clientData, int substationID, int fid) {
+//        Collect the clients' proof (tau) from the data object
         List<BigInteger> clientProofs = clientData.stream().map(RSAClientData::getProofComponent).collect(Collectors.toList());
+//        Query the trusted third-party to receive Rn and add it to the list of client proofs
         BigInteger lastClientProof = publicParameters.getLastClientProof(substationID, fid);
         clientProofs.add(lastClientProof);
+//        Collect the servers' partial results from the data object
         Stream<BigInteger> partialResults = serverData.stream().map(RSAServerData::getPartialResult);
+//        Collect the servers' partial proofs from the data obejct
         Map<Integer, RSAServerData.ProofData> serverProofInfo = serverData.get(0).getPartialProofs();
 
-        // Add the public key to each proof component computation.
+//        Add the public key to each proof component computation.
         clientData.forEach(client -> serverProofInfo.get(client.getId()).setPublicKey(client.getPublicKey()));
 
+//        Compute the final evaluation, i.e., compute the final sum of the servers partial sum
         BigInteger rsaResult = rsaThresholdVerifier.finalEval(partialResults);
+//        Compute the final proof, i.e, the product of all servers' proof to the power of the proofs public key
         BigInteger rsaServerProof = rsaThresholdVerifier.finalProof(serverProofInfo.values(), substationID, lastClientProof);
+//        Verify that the computations are correct
         boolean rsaValidResult = rsaThresholdVerifier.verify(substationID, rsaResult, rsaServerProof, clientProofs);
 
         log.info("[FID {}] RSA: result:{} server proof:{} valid:{}", fid, rsaResult, rsaServerProof, rsaValidResult);
+    }
+
+    /**
+     * This function handles all the computations for the Linear Signature based construction
+     * @param serverData a list of all the data from the servers for the given fid and substation
+     * @param clientData a list of all the data from the clients for the given fid and substation
+     * @param substationID id for the substation
+     * @param fid id for the computation
+     */
+    private void performLinearSignatureComputation(List<LinearServerData> serverData, List<LinearClientData> clientData, int substationID, int fid) {
+//        Compute the final evaluation, i.e., compute the final sum of the servers partial sum
+        BigInteger linearResult = linearSignature.finalEval(serverData.stream().map(LinearServerData::getPartialResult));
+//        Collects the public available data
+        LinearPublicData publicData = publicParameters.getLinearPublicData(substationID, fid);
+//        Query the trusted third-party to receive Rn
+        BigInteger rn = publicParameters.getRn(substationID, fid);
+//        Computes the final proof
+        LinearProofData proofData = linearSignature.finalProof(clientData, publicData);
+//        Verify that the computations are correct
+        boolean validResult = linearSignature.verify(linearResult, proofData, publicData, rn);
+        log.info("[FID {}] Linear: result:{} valid:{}", fid, linearResult, validResult);
     }
 
 

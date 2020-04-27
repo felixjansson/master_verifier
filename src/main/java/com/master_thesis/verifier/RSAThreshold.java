@@ -27,23 +27,39 @@ public class RSAThreshold {
         this.publicParameters = publicParameters;
     }
 
+    /**
+     * This is the final Eval function from the RSA Threshold based construction
+     * @param partialResultInfo a stream of all the partial sums, given from the servers
+     * @return the sum of the servers' partial sums
+     */
     public BigInteger finalEval(Stream<BigInteger> partialResultInfo) {
         return partialResultInfo
                 .reduce(BigInteger.ZERO, BigInteger::add);
     }
 
+    /**
+     * This is the final Proof function from the RSA Threshold based construction
+     * @param rsaProofComponents is a collection with the required RSA components used
+     * @param substationID an identifier for the substation which this computation is related to
+     * @param lastClientProof is the Rn from the trusted third-party
+     * @return the final proof component (sigma)
+     */
     public BigInteger finalProof(Collection<RSAServerData.ProofData> rsaProofComponents, int substationID, BigInteger lastClientProof) {
         if (rsaProofComponents.isEmpty())
             return null;
+//        Compute the product of all servers' proof components to the power of its public key
         return rsaProofComponents.stream()
+//                Combine the partial signatures
                 .map(rsaProofComponent -> {
                     try {
+//                        Compute the signature that corresponds to the secret
                         BigInteger encryptedRSAProof = clientFinalProof(
                                 rsaProofComponent.getPublicKey(),
                                 rsaProofComponent.getClientProof(),
                                 rsaProofComponent.getRsaProofComponent(),
                                 rsaProofComponent.getRsaN(),
                                 rsaProofComponent.getRsaDeterminant());
+//                        Compute the power of sigma_i to pk
                         BigInteger res = encryptedRSAProof.modPow(rsaProofComponent.getPublicKey(), rsaProofComponent.getRsaN());
                         return res;
                     } catch (Exception e) {
@@ -51,40 +67,64 @@ public class RSAThreshold {
                     }
                     return null;
                 })
+//                Compute the product of all partial signatures^pk
                 .reduce(lastClientProof, BigInteger::multiply)
                 .mod(publicParameters.getFieldBase(substationID));
     }
 
 
+    /**
+     * This is the verify function from the RSA Threshold based construction
+     * @param substationID an identifier for the substation which this computation is related to
+     * @param result is given from the final Eval function
+     * @param serverProof is given from the final Proof function
+     * @param clientProofs is a list of all clients' proofs (tau from paper)
+     * @return true: if product of client proofs == hash of the final eval
+     *          AND if the product of clients' proofs == the server proof,
+     *          false: otherwise
+     */
     public boolean verify(int substationID, BigInteger result, BigInteger serverProof, List<BigInteger> clientProofs) {
         if (serverProof == null)
             return false;
         BigInteger fieldBase = publicParameters.getFieldBase(substationID);
+//        Compute the product of all the clients' proofs
         BigInteger clientProof = clientProofs.stream().reduce(BigInteger.ONE, BigInteger::multiply).mod(fieldBase);
+//        Compute the hash of the final result
         BigInteger resultProof = hash(result, fieldBase, publicParameters.getGenerator(substationID));
+//        Check if the product of the clients' proofs are equal to the hash value of the final result
         boolean clientEqResult = clientProof.equals(resultProof);
+    //        Check if the product of the clients' proofs are equal to the final proof
         boolean clientEqServer = clientProof.equals(serverProof);
         if (!(clientEqResult && clientEqServer))
             log.info("clientProof: {}, resultProof: {}, serverProof:{}", clientProof, resultProof, serverProof);
-        return clientProof.equals(resultProof) && clientProof.equals(serverProof);
+        return clientEqResult && clientEqServer;
     }
 
     public BigInteger hash(BigInteger input, BigInteger fieldBase, BigInteger generator) {
         return generator.modPow(input, fieldBase);
     }
 
+    /**
+     * This function computes sigma roof (i.e. solves Equation 2.9)
+     * @param pk is rsa public key
+     * @param clientProof is the clientProof in use
+     * @param serverProofs is the partial signatures from the servers
+     * @param rsaN the modulo used in the rsa signature
+     * @param determinant is the determinant of the matrix A_is
+     * @return the sigma roof
+     */
     private BigInteger clientFinalProof(BigInteger pk, BigInteger clientProof, BigInteger[] serverProofs, BigInteger rsaN, double determinant) {
-
+//      Compute the product of all server proofs
         BigInteger partial = Arrays.stream(serverProofs).reduce(ONE, BigInteger::multiply).mod(rsaN);
-
-        // Find alpha and beta
+//        Preprocess the determinant
         BigInteger det = BigInteger.valueOf(Math.round(determinant));
+//        Collect the sign of the determinant
         BigInteger detSign = det.divide(det.abs());
+//        Compute alpha and beta with EEA
         BigInteger[] eeaResult = extendedEuclideanAlgorithm(det.multiply(BigInteger.TWO), pk);
         BigInteger alpha = eeaResult[0].multiply(detSign);
         BigInteger beta = eeaResult[1];
-
-        // Compute the clients' rsa proof component
+//        Compute the clients' rsa proof component
         BigInteger sigmaRoofAlpha = partial.modPow(alpha, rsaN);
         BigInteger tauBeta = clientProof.modPow(beta, rsaN);
         return sigmaRoofAlpha.multiply(tauBeta).mod(rsaN);
