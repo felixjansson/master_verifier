@@ -5,6 +5,7 @@ import com.master_thesis.verifier.data.*;
 import com.master_thesis.verifier.utils.PublicParameters;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,12 +34,12 @@ public class VerifierApplication {
     private RSAThreshold rsaThresholdVerifier;
     private HomomorphicHash homomorphicHashVerifier;
     private LinearSignature linearSignature;
+    private DifferentialPrivacy differentialPrivacy;
     private PublicParameters publicParameters;
-    private NonceDistribution nonceDistribution;
 
     @Autowired
-    public VerifierApplication(RSAThreshold rsaThresholdVerifier, HomomorphicHash homomorphicHashVerifier, LinearSignature linearSignature, NonceDistribution nonceDistribution, PublicParameters publicParameters) {
-        this.nonceDistribution = nonceDistribution;
+    public VerifierApplication(RSAThreshold rsaThresholdVerifier, @Qualifier("homomorphicHash") HomomorphicHash homomorphicHashVerifier, LinearSignature linearSignature, DifferentialPrivacy differentialPrivacy, PublicParameters publicParameters) {
+        this.differentialPrivacy = differentialPrivacy;
         this.serverBuffer = new DataBuffer();
         this.clientBuffer = new DataBuffer();
         this.bufferLock = new ReentrantLock();
@@ -94,19 +95,21 @@ public class VerifierApplication {
             new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
     }
 
-    @PostMapping(value = "/server/nonce-data")
-    public void receiveLinearServerData(@RequestBody NonceServerData serverData) throws InterruptedException {
+
+    @PostMapping(value = "/server/dp-data")
+    public void receiveHashServerData(@RequestBody DPServerData serverData) throws InterruptedException {
         boolean isAllDataAvailable = putData(serverData, serverBuffer);
         if (isAllDataAvailable)
             new Thread(() -> performComputations(serverData.getSubstationID(), serverData.getFid())).start();
     }
 
-    @PostMapping(value = "/client/nonce-data")
-    public void receiveLinearClientData(@RequestBody NonceClientData clientData) throws InterruptedException {
+    @PostMapping(value = "/client/dp-data")
+    public void receiveHashClientData(@RequestBody DPClientData clientData) throws InterruptedException {
         boolean isAllDataAvailable = putData(clientData, clientBuffer);
         if (isAllDataAvailable)
             new Thread(() -> performComputations(clientData.getSubstationID(), clientData.getFid())).start();
     }
+
 
     /****
      * END OF API END POINTS
@@ -185,22 +188,13 @@ public class VerifierApplication {
             performLinearSignatureComputation(serverData, clientData, substationID, fid);
         }
 
-        // Nonce verification
-        if (bufferServerData.getConstruction().equals(Construction.NONCE)) {
-            List<NonceServerData> serverData = bufferServerData.values().stream().map(val -> (NonceServerData) val).collect(Collectors.toList());
-            List<NonceClientData> clientData = bufferClientData.values().stream().map(val -> (NonceClientData) val).collect(Collectors.toList());
-            performNonceDistributionComputation(serverData, clientData, substationID, fid);
+        // Differential Privacy verification
+        if (bufferServerData.getConstruction().equals(Construction.DP)) {
+            List<DPServerData> serverData = bufferServerData.values().stream().map(val -> (DPServerData) val).collect(Collectors.toList());
+            List<DPClientData> clientData = bufferClientData.values().stream().map(val -> (DPClientData) val).collect(Collectors.toList());
+            performDifferentialPrivacyComputation(serverData, clientData, substationID, fid);
         }
 
-    }
-
-    private void performNonceDistributionComputation(List<NonceServerData> serverData, List<NonceClientData> clientData, int substationID, int fid) {
-        List<BigInteger> clientProofs = clientData.stream().map(NonceClientData::getProofComponent).collect(Collectors.toList());
-        BigInteger hashResult = nonceDistribution.finalEval(serverData.stream().map(NonceServerData::getPartialResult), substationID);
-        BigInteger nonceResult = nonceDistribution.finalNonce(serverData.stream().map(NonceServerData::getPartialNonce), substationID);
-        BigInteger hashServerProof = nonceDistribution.finalProof(serverData.stream().map(NonceServerData::getPartialProof), substationID);
-        boolean hashValidResult = nonceDistribution.verify(substationID, hashResult, hashServerProof, clientProofs, nonceResult);
-        log.info("[FID {}] Nonce: result:{} server proof:{} valid:{}", fid, hashResult, hashServerProof, hashValidResult);
     }
 
     /**
@@ -276,6 +270,28 @@ public class VerifierApplication {
 //        Verify that the computations are correct
         boolean validResult = linearSignature.verify(linearResult, proofData, publicData, rn);
         log.info("[FID {}] Linear: result:{} valid:{}", fid, linearResult, validResult);
+    }
+
+    /**
+     * This function handles all the computations for the Differential Privacy based construction
+     * @param serverData a list of all the data from the servers for the given fid and substation
+     * @param clientData a list of all the data from the clients for the given fid and substation
+     * @param substationID id for the substation
+     * @param fid id for the computation
+     */
+    private void performDifferentialPrivacyComputation(List<DPServerData> serverData, List<DPClientData> clientData, int substationID, int fid) {
+//        Collect the clients' proof (tau) from the data object
+        List<BigInteger> clientProofs = clientData.stream().map(DPClientData::getProofComponent).collect(Collectors.toList());
+//        Query the trusted third-party to receive Rn and add it to the list of client proofs
+        BigInteger lastClientProof = publicParameters.getLastClientProof(substationID, fid);
+        clientProofs.add(lastClientProof);
+//        Compute the final evaluation, i.e., compute the final sum of the servers partial sum
+        BigInteger DPResult = differentialPrivacy.finalEval(serverData.stream().map(DPServerData::getPartialResult));
+//        Compute the final proof, i.e., compute the product of the servers' partial proofs
+        BigInteger DPServerProof = differentialPrivacy.finalProof(serverData.stream().map(DPServerData::getPartialProof), substationID);
+//        Verify that the computations are correct.
+        boolean DPValidResult = differentialPrivacy.verify(substationID, DPResult, DPServerProof, clientProofs);
+        log.info("[FID {}] DP: result:{} server proof:{} valid:{}", fid, DPResult, DPServerProof, DPValidResult);
     }
 
 

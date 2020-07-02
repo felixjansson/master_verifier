@@ -2,11 +2,11 @@ package com.master_thesis.verifier.data;
 
 import java.math.BigInteger;
 
-public class NonceClientData extends ComputationData {
+public class DPClientData extends ComputationData {
     private BigInteger proofComponent;
 
-    protected NonceClientData() {
-        super(Construction.NONCE);
+    protected DPClientData() {
+        super(Construction.DP);
     }
 
     public BigInteger getProofComponent() {
@@ -19,8 +19,8 @@ public class NonceClientData extends ComputationData {
 
     @Override
     public String toString() {
-        return "NonceClientData{" +
-                "proofComponent=" + proofComponent +
+        return "DPClientData{" +
+                "clientProofComponent=" + proofComponent +
                 "} " + super.toString();
     }
 }
